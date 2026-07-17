@@ -9,7 +9,7 @@ class DashChip extends StatelessWidget {
   final String label;
   final Color color;
 
-  static const _palette = [
+  static final _palette = [
     DashColors.accent,
     DashColors.accent2,
     DashColors.success,

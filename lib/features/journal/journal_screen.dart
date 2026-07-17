@@ -6,7 +6,8 @@ import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
 import '../editor/editor.dart';
-import 'metric_sliders.dart';
+import 'journal_calendar.dart';
+import 'journal_properties.dart';
 
 final _titleFmt = DateFormat('EEEE, MMMM d');
 
@@ -16,45 +17,47 @@ class JournalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final date = ref.watch(selectedJournalDateProvider);
-    final dateNotifier = ref.read(selectedJournalDateProvider.notifier);
     final isToday = date == _today0();
     final doc = ref.watch(journalNoteProvider(date));
 
-    return Column(
+    final main = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
             Text(_titleFmt.format(date), style: DashType.display),
-            const Spacer(),
-            _NavButton(icon: 'chevron_left', tooltip: 'Previous day', onTap: dateNotifier.previous),
-            _NavButton(
-              icon: 'calendar_today',
-              tooltip: 'Today',
-              onTap: isToday ? null : dateNotifier.goToday,
-            ),
-            _NavButton(
-              icon: 'chevron_right',
-              tooltip: 'Next day',
-              onTap: isToday ? null : dateNotifier.next,
-            ),
+            if (!isToday) ...[
+              const SizedBox(width: DashSpace.x3),
+              _NavButton(
+                icon: 'calendar_today',
+                tooltip: 'Today',
+                onTap: ref.read(selectedJournalDateProvider.notifier).goToday,
+              ),
+            ],
           ],
         ),
         if (doc.value?.changedOnDisk ?? false)
           _ChangedBanner(onReload: () => ref.read(journalNoteProvider(date).notifier).reload()),
-        const SizedBox(height: DashSpace.x4),
+        const SizedBox(height: DashSpace.x3),
         switch (doc) {
           AsyncData(:final value) => Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  MetricSliders(date: date, metrics: value.metrics),
-                  const SizedBox(height: DashSpace.x4),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(width: 300, child: JournalProperties(date: date, metrics: value.metrics)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: DashSpace.x3),
+                    child: Container(height: 1, color: DashColors.glassBorder),
+                  ),
                   Expanded(
                     child: NoteEditor(
                       key: ValueKey(date),
                       initialText: value.body,
                       onChanged: ref.read(journalNoteProvider(date).notifier).setBody,
+                      centered: false,
                     ),
                   ),
                 ],
@@ -63,8 +66,17 @@ class JournalScreen extends ConsumerWidget {
           AsyncError(:final error) => Expanded(
               child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger))),
             ),
-          _ => const Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
+          _ => Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
         },
+      ],
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: main),
+        const SizedBox(width: DashSpace.x4),
+        const SizedBox(width: 224, child: JournalCalendar()),
       ],
     );
   }

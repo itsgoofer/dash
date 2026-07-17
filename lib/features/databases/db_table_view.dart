@@ -177,7 +177,7 @@ class _EntryRowState extends State<_EntryRow> {
     return switch (field?.type) {
       FieldType.number => Text(value.toString(), style: DashType.mono),
       FieldType.checkbox => value == true
-          ? const DashIcon('check', size: 16, color: DashColors.accent)
+          ? DashIcon('check', size: 16, color: DashColors.accent)
           : const SizedBox.shrink(),
       FieldType.select => Align(
           alignment: Alignment.centerLeft,

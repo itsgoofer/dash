@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 
-const _series = [
+final _series = [
   (key: 'rating', label: 'Rating', color: DashColors.accent),
   (key: 'energy', label: 'Energy', color: DashColors.accent2),
   (key: 'productivity', label: 'Focus', color: DashColors.success),
@@ -75,28 +76,20 @@ class MetricCharts extends ConsumerWidget {
             if (_valueFor(m[i], key) case final v?) FlSpot(i.toDouble(), v.toDouble()) else FlSpot.nullSpot,
         ];
 
-    LineChartBarData underlay(String key, Color color) => LineChartBarData(
-          spots: spots(key),
-          isCurved: true,
-          preventCurveOverShooting: true,
-          color: color.withValues(alpha: 0.25),
-          barWidth: 6,
-          dotData: const FlDotData(show: false),
-        );
-
+    // v2: minimal — thin lines, faint fill, no glow underlays.
     LineChartBarData line(String key, Color color) => LineChartBarData(
           spots: spots(key),
           isCurved: true,
           preventCurveOverShooting: true,
-          color: color,
-          barWidth: 2,
+          color: color.withValues(alpha: 0.9),
+          barWidth: 1.5,
           dotData: const FlDotData(show: false),
           belowBarData: BarAreaData(
             show: true,
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [color.withValues(alpha: 0.18), color.withValues(alpha: 0)],
+              colors: [color.withValues(alpha: 0.07), color.withValues(alpha: 0)],
             ),
           ),
         );
@@ -106,16 +99,12 @@ class MetricCharts extends ConsumerWidget {
       maxX: (m.length - 1).toDouble(),
       minY: 0,
       maxY: 10,
-      // Soft glow underlays first, crisp lines on top.
-      lineBarsData: [
-        for (final s in _series) underlay(s.key, s.color),
-        for (final s in _series) line(s.key, s.color),
-      ],
+      lineBarsData: [for (final s in _series) line(s.key, s.color)],
       gridData: FlGridData(
         show: true,
         drawVerticalLine: false,
         horizontalInterval: 2,
-        getDrawingHorizontalLine: (_) => FlLine(color: DashColors.glassBorder.withValues(alpha: 0.5), strokeWidth: 1),
+        getDrawingHorizontalLine: (_) => FlLine(color: DashColors.glassBorder.withValues(alpha: 0.35), strokeWidth: 1),
       ),
       borderData: FlBorderData(show: false),
       titlesData: FlTitlesData(
@@ -144,8 +133,8 @@ class MetricCharts extends ConsumerWidget {
           tooltipBorder: BorderSide(color: DashColors.glassBorder),
           tooltipBorderRadius: DashRadius.br,
           getTooltipItems: (spots) => spots.map((s) {
-            if (s.bar.barWidth != 2) return null; // skip glow underlays
-            final label = _series.firstWhere((e) => e.color == s.bar.color).label;
+            final label = _series.firstWhereOrNull((e) => e.color.withValues(alpha: 0.9) == s.bar.color)?.label;
+            if (label == null) return null;
             return LineTooltipItem('$label  ${s.y.toInt()}',
                 DashType.small.copyWith(color: s.bar.color, fontWeight: FontWeight.w600));
           }).toList(),

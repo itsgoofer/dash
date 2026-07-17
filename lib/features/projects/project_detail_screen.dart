@@ -56,7 +56,7 @@ class ProjectDetailScreen extends ConsumerWidget {
           AsyncError(:final error) => Expanded(
               child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger))),
             ),
-          _ => const Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
+          _ => Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
         },
       ],
     );

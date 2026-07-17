@@ -16,43 +16,36 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const heroHeight = 380.0;
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _Rise(index: 0, child: _Greeting()),
-          const SizedBox(height: DashSpace.x4),
-          LayoutBuilder(
-            builder: (context, c) {
-              final brain = const _Rise(index: 1, child: _Panel(glow: true, title: 'NEURAL INDEX', child: BrainView()));
-              final chart = const _Rise(index: 2, child: _Panel(glow: true, title: 'LAST 14 DAYS', child: MetricCharts()));
-              final wide = c.maxWidth > 1200;
-              return SizedBox(
-                height: wide ? heroHeight : null,
-                child: wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(flex: 5, child: brain),
-                          const SizedBox(width: DashSpace.x3),
-                          Expanded(flex: 7, child: chart),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          SizedBox(height: heroHeight, child: brain),
-                          const SizedBox(height: DashSpace.x3),
-                          SizedBox(height: 300, child: chart),
-                        ],
-                      ),
-              );
-            },
+    return LayoutBuilder(
+      builder: (context, c) {
+        final brainH = (c.maxHeight * 0.52).clamp(360.0, 640.0);
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _Rise(index: 0, child: _Greeting()),
+              const SizedBox(height: DashSpace.x4),
+              _Rise(
+                index: 1,
+                child: SizedBox(
+                  height: brainH,
+                  child: const _Panel(title: 'NEURAL INDEX', child: BrainView()),
+                ),
+              ),
+              const SizedBox(height: DashSpace.x3),
+              const _Rise(
+                index: 2,
+                child: SizedBox(
+                  height: 220,
+                  child: _Panel(title: 'LAST 14 DAYS', child: MetricCharts()),
+                ),
+              ),
+              const SizedBox(height: DashSpace.x3),
+              const _Rise(index: 3, child: StatTiles()),
+            ],
           ),
-          const SizedBox(height: DashSpace.x3),
-          const _Rise(index: 3, child: StatTiles()),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -78,15 +71,13 @@ class _Greeting extends StatelessWidget {
 
 /// A titled glass panel; the small caption is decorative flavour.
 class _Panel extends StatelessWidget {
-  const _Panel({required this.child, required this.title, this.glow = false});
+  const _Panel({required this.child, required this.title});
   final Widget child;
   final String title;
-  final bool glow;
 
   @override
   Widget build(BuildContext context) {
     return GlassPanel(
-      glow: glow,
       padding: const EdgeInsets.all(DashSpace.x4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

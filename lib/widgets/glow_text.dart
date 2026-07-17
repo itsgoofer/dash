@@ -8,24 +8,25 @@ class GlowText extends StatelessWidget {
     this.text, {
     super.key,
     this.style,
-    this.color = DashColors.accent,
+    this.color,
     this.blurRadius = 16,
   });
 
   final String text;
   final TextStyle? style;
-  final Color color;
+  final Color? color;
   final double blurRadius;
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? DashColors.accent;
     return Text(
       text,
       style: (style ?? DashType.title).copyWith(
-        color: color,
+        color: c,
         shadows: [
-          Shadow(color: color.withValues(alpha: 0.8), blurRadius: blurRadius),
-          Shadow(color: color.withValues(alpha: 0.4), blurRadius: blurRadius * 2),
+          Shadow(color: c.withValues(alpha: 0.8), blurRadius: blurRadius),
+          Shadow(color: c.withValues(alpha: 0.4), blurRadius: blurRadius * 2),
         ],
       ),
     );

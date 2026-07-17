@@ -14,4 +14,4 @@ Goofer's directive (2026-07-17): redefine the UI. Implemented by Fable directly,
 8. **Fullscreen by default** — launch maximized (window_manager maximize on first show; remember user's size after).
 
 ## Status
-- [ ] Not started — begins after Phase 6 (editor polish) is committed.
+- [x] Shipped 2026-07-17 — verified via shot harness (dashboard, journal, calendar, properties, accent picker).

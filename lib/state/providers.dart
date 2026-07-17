@@ -11,6 +11,7 @@ import '../core/frontmatter.dart';
 import '../core/models/db_schema.dart';
 import '../core/models/note.dart';
 import '../core/tasks.dart';
+import '../theme/dash_theme.dart';
 import '../vault/index.dart';
 import '../vault/vault_fs.dart';
 import '../vault/vault_watcher.dart';
@@ -617,3 +618,37 @@ final projectTaskCountsProvider = FutureProvider.family<TaskCounts, String>((ref
   if (!await file.exists()) return TaskCounts.zero;
   return TaskCounts.from(Frontmatter.parse(await file.readAsString()).body);
 });
+
+/// Vault-persisted accent color (name from DashColors.accents). Setting it
+/// mutates DashColors.accent and bumps state so DashApp rebuilds its theme.
+class AccentNotifier extends AsyncNotifier<String> {
+  @override
+  Future<String> build() async {
+    final root = await ref.watch(vaultPathProvider.future);
+    var name = 'cyan';
+    if (root != null) {
+      final f = File(p.join(root, '.dash', 'settings.yaml'));
+      if (await f.exists()) {
+        final m = RegExp(r'^accent:\s*(\w+)', multiLine: true).firstMatch(await f.readAsString());
+        if (m != null && DashColors.accents.containsKey(m.group(1))) name = m.group(1)!;
+      }
+    }
+    DashColors.accent = DashColors.accents[name]!;
+    return name;
+  }
+
+  Future<void> set(String name) async {
+    if (!DashColors.accents.containsKey(name)) return;
+    DashColors.accent = DashColors.accents[name]!;
+    state = AsyncData(name);
+    final root = ref.read(vaultPathProvider).value;
+    if (root == null) return;
+    final f = File(p.join(root, '.dash', 'settings.yaml'));
+    var text = await f.exists() ? await f.readAsString() : '';
+    text = text.replaceAll(RegExp(r'^accent:.*\n?', multiLine: true), '');
+    if (text.isNotEmpty && !text.endsWith('\n')) text += '\n';
+    await f.writeAsString('${text}accent: $name\n');
+  }
+}
+
+final accentProvider = AsyncNotifierProvider<AccentNotifier, String>(AccentNotifier.new);

@@ -30,6 +30,7 @@ Future<void> main() async {
     titleBarStyle: Platform.isMacOS ? TitleBarStyle.hidden : TitleBarStyle.normal,
   );
   windowManager.waitUntilReadyToShow(options, () async {
+    await windowManager.maximize();
     await windowManager.show();
     await windowManager.focus();
   });

@@ -38,7 +38,7 @@ class BrainPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
-    final cx = w / 2, cy = h / 2, R = min(w, h) * 0.42;
+    final cx = w / 2, cy = h / 2, R = min(w, h) * 0.54;
 
     // Subtle radial accent tint (shader cached by size — no per-frame alloc).
     if (_bg == null || size != _bgSize) {

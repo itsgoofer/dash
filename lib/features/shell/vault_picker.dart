@@ -63,7 +63,7 @@ class _VaultPickerState extends ConsumerState<VaultPicker> {
               ),
               const SizedBox(height: DashSpace.x4),
               if (_busy)
-                const SizedBox(
+                SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(strokeWidth: 2, color: DashColors.accent),

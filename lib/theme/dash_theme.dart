@@ -18,9 +18,9 @@ abstract final class DashRadius {
 
 /// Shared control heights so same-row controls (buttons, inputs, dropdowns) align.
 abstract final class DashSize {
-  static const control = 32.0;
-  static const controlCompact = 28.0;
-  static const iconButton = 28.0;
+  static const control = 30.0;
+  static const controlCompact = 26.0;
+  static const iconButton = 26.0;
 }
 
 abstract final class DashMotion {
@@ -32,27 +32,41 @@ abstract final class DashMotion {
   static const stagger = Duration(milliseconds: 30);
 }
 
+/// v2 palette: dark gray/navy, white text, restrained glow.
+/// [accent] is runtime-changeable (persisted per-vault); never reference it
+/// from a const context.
 abstract final class DashColors {
-  static const bg0 = Color(0xFF0A0E14);
-  static const bg1 = Color(0xFF0F141C);
-  static final glassFill = Colors.white.withValues(alpha: 0.04);
-  static final glassBorder = Colors.white.withValues(alpha: 0.07);
+  static const bg0 = Color(0xFF08090D);
+  static const bg1 = Color(0xFF0D0F15);
+  static final glassFill = Colors.white.withValues(alpha: 0.03);
+  static final glassBorder = Colors.white.withValues(alpha: 0.06);
   static final hover = Colors.white.withValues(alpha: 0.05);
   static final active = Colors.white.withValues(alpha: 0.09);
-  static const accent = Color(0xFF22D3EE);
-  static final accentDim = accent.withValues(alpha: 0.15);
+
+  /// Curated accent choices (name → color); default cyan.
+  static const accents = <String, Color>{
+    'cyan': Color(0xFF22D3EE),
+    'violet': Color(0xFF818CF8),
+    'green': Color(0xFF34D399),
+    'amber': Color(0xFFFBBF24),
+    'red': Color(0xFFF87171),
+    'white': Color(0xFFE6EDF3),
+  };
+  static Color accent = accents['cyan']!;
+  static Color get accentDim => accent.withValues(alpha: 0.14);
+
   static const accent2 = Color(0xFF818CF8);
   static const success = Color(0xFF34D399);
   static const warning = Color(0xFFFBBF24);
   static const danger = Color(0xFFF87171);
-  static const text0 = Color(0xFFE6EDF3);
-  static const text1 = Color(0xFF8B98A9);
-  static const text2 = Color(0xFF4B5666);
+  static const text0 = Color(0xFFF4F6F8);
+  static const text1 = Color(0xFF848D9C);
+  static const text2 = Color(0xFF454D5C);
 
   // Legacy aliases kept for call-site compatibility.
   static const bg = bg0;
   static const surface = bg1;
-  static const border = Color(0x12FFFFFF);
+  static const border = Color(0x0FFFFFFF);
   static const accentSecondary = accent2;
   static const textPrimary = text0;
   static const textSecondary = text1;
@@ -65,29 +79,30 @@ abstract final class DashType {
 
   static const display = TextStyle(
     fontFamily: _family,
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: FontWeight.w700,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
     color: DashColors.text0,
   );
 
   static const title = TextStyle(
     fontFamily: _family,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: FontWeight.w600,
+    letterSpacing: -0.2,
     color: DashColors.text0,
   );
 
   static const heading = TextStyle(
     fontFamily: _family,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: FontWeight.w600,
     color: DashColors.text0,
   );
 
   static const body = TextStyle(
     fontFamily: _family,
-    fontSize: 15,
+    fontSize: 14,
     height: 1.6,
     fontWeight: FontWeight.w400,
     color: DashColors.text0,
@@ -95,32 +110,32 @@ abstract final class DashType {
 
   static const label = TextStyle(
     fontFamily: _family,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: FontWeight.w500,
     color: DashColors.text1,
   );
 
   static const small = TextStyle(
     fontFamily: _family,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: FontWeight.w400,
     color: DashColors.text1,
   );
 
   static const mono = TextStyle(
     fontFamily: _mono,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: FontWeight.w400,
     color: DashColors.text0,
   );
 
-  // Editor scale (body 15 base): dimmed markers rendered separately.
+  // Editor scale (body 14 base): dimmed markers rendered separately.
   static const editorH1 =
-      TextStyle(fontFamily: _family, fontSize: 26, fontWeight: FontWeight.w700, height: 1.35, color: DashColors.text0);
+      TextStyle(fontFamily: _family, fontSize: 22, fontWeight: FontWeight.w700, height: 1.35, color: DashColors.text0);
   static const editorH2 =
-      TextStyle(fontFamily: _family, fontSize: 21, fontWeight: FontWeight.w600, height: 1.35, color: DashColors.text0);
+      TextStyle(fontFamily: _family, fontSize: 18, fontWeight: FontWeight.w600, height: 1.35, color: DashColors.text0);
   static const editorH3 =
-      TextStyle(fontFamily: _family, fontSize: 17, fontWeight: FontWeight.w600, height: 1.4, color: DashColors.text0);
+      TextStyle(fontFamily: _family, fontSize: 15, fontWeight: FontWeight.w600, height: 1.4, color: DashColors.text0);
   static const codeFamily = _mono;
 }
 
@@ -198,32 +213,22 @@ ThemeData buildDashTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: DashRadius.br,
-        borderSide: const BorderSide(color: DashColors.accent),
+        borderSide: BorderSide(color: DashColors.accent),
       ),
     ),
     scrollbarTheme: ScrollbarThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.hovered)
             ? Colors.white.withValues(alpha: 0.20)
-            : Colors.white.withValues(alpha: 0.12),
+            : Colors.white.withValues(alpha: 0.10),
       ),
       radius: Radius.zero,
       thickness: const WidgetStatePropertyAll(6),
       trackVisibility: const WidgetStatePropertyAll(false),
     ),
-    sliderTheme: SliderThemeData(
-      activeTrackColor: DashColors.accent,
-      inactiveTrackColor: DashColors.glassBorder,
-      thumbColor: Colors.white,
-      overlayColor: DashColors.accent.withValues(alpha: 0.15),
-      trackHeight: 4,
-      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-      tickMarkShape: const RoundSliderTickMarkShape(tickMarkRadius: 0),
-    ),
-    textSelectionTheme: const TextSelectionThemeData(
+    textSelectionTheme: TextSelectionThemeData(
       cursorColor: DashColors.accent,
-      selectionColor: Color(0x2622D3EE),
+      selectionColor: DashColors.accent.withValues(alpha: 0.15),
       selectionHandleColor: DashColors.accent,
     ),
     tooltipTheme: TooltipThemeData(

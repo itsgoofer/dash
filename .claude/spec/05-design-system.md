@@ -1,5 +1,7 @@
 # Dash Design System
 
+**v2 amendments (authoritative where they conflict with below — see 06-redesign.md):** palette darkened (`bg0 #08090D`, `bg1 #0D0F15`, `text0 #F4F6F8`, `text1 #848D9C`, `text2 #454D5C`); **accent is runtime-changeable** (`DashColors.accent` mutable static, curated set in `DashColors.accents`, persisted as `accent:` in vault `.dash/settings.yaml`, picker in sidebar gear — never reference accent in const contexts); type scale reduced (display 22, title 16, heading 13, body 14, label 12, small 11, mono 12; editor H1 22/H2 18/H3 15); `controlHeight 30`; charts minimal (1.5px lines, no glow underlay, fill 7%→0, grid 35%); brain = full-width hero, no panel glow; journal nav = side month calendar (dots on logged days), metrics = Notion-style property rows with 1-10 popover picker (sliders removed); app launches maximized.
+
 Single source of truth for all UI. Every token lives in `lib/theme/dash_theme.dart` — components never hardcode colors/sizes/durations. If a screen needs something not listed here, add the token here first.
 
 ## Color tokens (dark only)

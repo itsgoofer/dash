@@ -25,7 +25,7 @@ class AppRoot extends ConsumerWidget {
     final vaultPath = ref.watch(vaultPathProvider);
     return switch (vaultPath) {
       AsyncData(:final value) when value != null => const Shell(),
-      AsyncLoading() => const Scaffold(
+      AsyncLoading() => Scaffold(
         backgroundColor: DashColors.bg0,
         body: Center(child: CircularProgressIndicator(color: DashColors.accent)),
       ),
@@ -153,10 +153,17 @@ class _VaultBanner extends ConsumerWidget {
                 ],
               ),
             ),
-          Text(
-            p.basename(vaultPath),
-            style: DashType.label,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  p.basename(vaultPath),
+                  style: DashType.label,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const _AccentPicker(),
+            ],
           ),
         ],
       ),
@@ -223,6 +230,60 @@ class _NavItemState extends State<_NavItem> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Settings gear → accent color swatches (persisted per-vault).
+class _AccentPicker extends ConsumerWidget {
+  const _AccentPicker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(accentProvider).value ?? 'cyan';
+    return MenuAnchor(
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(DashColors.bg1),
+        shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: DashRadius.br, side: BorderSide(color: DashColors.glassBorder))),
+        padding: const WidgetStatePropertyAll(EdgeInsets.all(DashSpace.x2)),
+      ),
+      menuChildren: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final e in DashColors.accents.entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Tooltip(
+                  message: e.key,
+                  child: GestureDetector(
+                    onTap: () => ref.read(accentProvider.notifier).set(e.key),
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: e.value,
+                          borderRadius: DashRadius.br,
+                          border: e.key == current ? Border.all(color: DashColors.text0, width: 1.5) : null,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+      builder: (context, controller, _) => GestureDetector(
+        onTap: () => controller.isOpen ? controller.close() : controller.open(),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: DashIcon('settings', size: 14, color: DashColors.text2),
         ),
       ),
     );
