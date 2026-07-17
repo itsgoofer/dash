@@ -36,6 +36,9 @@ Future<void> _shot(String name) async {
 Future<void> shotRun(ProviderContainer container) async {
   if (shotDir.isEmpty) return;
   await Future.delayed(const Duration(seconds: 4));
+  // Force the note editor into its rendered read view so the journal shot proves
+  // Stage-B rendering (images, callouts, code fences, hidden markers).
+  container.read(editorReadModeProvider.notifier).set(true);
   for (final section in ShellSection.values) {
     container.read(shellSectionProvider.notifier).select(section);
     await _shot(section.name);

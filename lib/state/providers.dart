@@ -50,6 +50,17 @@ final vaultPathProvider = AsyncNotifierProvider<VaultPathNotifier, String?>(Vaul
 
 final vaultFsProvider = Provider<VaultFs>((ref) => VaultFs());
 
+/// Forces the note editor into read (`true`) or edit (`false`) mode across the
+/// app; `null` = let each editor keep its own local toggle. Used by the shot
+/// harness to prove the rendered read view.
+class EditorReadModeNotifier extends Notifier<bool?> {
+  @override
+  bool? build() => null;
+  void set(bool? v) => state = v;
+}
+
+final editorReadModeProvider = NotifierProvider<EditorReadModeNotifier, bool?>(EditorReadModeNotifier.new);
+
 /// Opens the current vault (scan + watch) and exposes its live [VaultIndex].
 class IndexNotifier extends AsyncNotifier<VaultIndex> {
   VaultWatcher? _watcher;

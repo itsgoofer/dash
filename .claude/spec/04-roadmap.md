@@ -20,8 +20,8 @@ Schema yaml parse, db list, typed sortable table view from index, entry create/e
 ## Phase 5 — Projects  [x]
 Built-in `projects.yaml` schema, project list with status chips, detail = fields + task checklist + notes body, project/task stats wired onto dashboard.
 
-## Phase 6 — Editor live-preview polish (Stage B)  [ ]
-Cursor-aware syntax hiding, block-hybrid rendering (images/HRs/tables), attachment handling: image paste (`super_clipboard`) + any-file drag (`desktop_drop`) → **copied into Attachments/** (never linked externally), images inline, other files as links.
+## Phase 6 — Editor live-preview polish (Stage B)  [x]
+Cursor-aware syntax hiding (markers transparent off the cursor's line — exact caret mapping), attachment handling: image/text paste (`super_clipboard`) + any-file drag (`desktop_drop`) → **copied into Attachments/** (never linked externally), images inline, other files as links. Read/edit toggle (⌘E, eye button) rendering the body via `MarkdownReadView` (headings, bold/italic, images, `> [!note]` callouts, code fences, interactive line-mapped task checkboxes) — chose the Obsidian-like toggle over full block-hybrid. Slash menu (`/` at line start → Heading/Task/Bullet/Divider/Image).
 
 ## Later / ideas
 Functional brain (nodes = real notes via `notePath`), Windows polish pass, global quick-search (cmd+K), journal templates.

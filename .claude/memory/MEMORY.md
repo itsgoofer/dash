@@ -12,4 +12,5 @@
 - Attachments: ANY attached file is copied into vault `Attachments/` (self-contained vault), images inline, others as links.
 - Design: **Inter font** (bundled asset), **4px radii everywhere** — no rounded/pill buttons. **Icons = Material Symbols SVGs in assets/icons via DashIcon widget — NEVER the Icons.* font.** Full system: `.claude/spec/05-design-system.md`.
 - Goofer wants **Notion-ish niceties**: slash-command menu, hover actions, callouts, gallery/board views. UI-only — md stays storage truth.
+- **UI Redesign v2 pending** (after Phase 6, Fable implements directly): darker gray/navy + white text, changeable accent (vault setting), smaller text/better typography, bigger brain on home, minimal darker charts, journal side-calendar nav, Notion-style property rows instead of sliders, fullscreen by default. Spec: `.claude/spec/06-redesign.md`.
 - Model routing: Sonnet 5 for routine implementation, **Opus/Fable for complicated tasks** (custom editor, live preview, watcher/index concurrency, brain painter), Haiku for explore/research.

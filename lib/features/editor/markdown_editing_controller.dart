@@ -25,15 +25,25 @@ class MarkdownEditingController extends TextEditingController {
   @override
   TextSpan buildTextSpan({required BuildContext context, TextStyle? style, required bool withComposing}) {
     final base = style ?? DashType.body;
-    final marker = base.copyWith(color: DashColors.text2, fontWeight: FontWeight.w400, fontStyle: FontStyle.normal);
+    // Cursor-aware markers: dimmed (text2) on the line(s) the selection touches,
+    // invisible (transparent — glyph metrics unchanged, so caret/click mapping
+    // stays exact) everywhere else. Text is never mutated.
+    final dimmed = base.copyWith(color: DashColors.text2, fontWeight: FontWeight.w400, fontStyle: FontStyle.normal);
+    final hidden = dimmed.copyWith(color: const Color(0x00000000));
     final codeBlock = base.copyWith(fontFamily: DashType.codeFamily, fontSize: 13, color: DashColors.text1, height: 1.5);
 
+    final sel = selection;
     final children = <InlineSpan>[];
     final lines = text.split('\n');
     var inFence = false;
+    var offset = 0;
 
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
+      final lineStart = offset;
+      final lineEnd = offset + line.length;
+      final active = sel.isValid && sel.end >= lineStart && sel.start <= lineEnd;
+      final marker = active ? dimmed : hidden;
       final isFence = line.trimLeft().startsWith('```');
 
       if (isFence || inFence) {
@@ -43,6 +53,7 @@ class MarkdownEditingController extends TextEditingController {
         _styleLine(line, base, marker, children);
       }
       if (i != lines.length - 1) children.add(TextSpan(text: '\n', style: base));
+      offset = lineEnd + 1;
     }
     return TextSpan(style: base, children: children);
   }
@@ -52,7 +63,7 @@ class MarkdownEditingController extends TextEditingController {
     if (heading != null) {
       final level = heading.group(1)!.length;
       final hStyle = switch (level) { 1 => DashType.editorH1, 2 => DashType.editorH2, _ => DashType.editorH3 };
-      out.add(TextSpan(text: line.substring(0, heading.end), style: marker.merge(hStyle).copyWith(color: DashColors.text2)));
+      out.add(TextSpan(text: line.substring(0, heading.end), style: marker.merge(hStyle).copyWith(color: marker.color)));
       out.add(TextSpan(text: line.substring(heading.end), style: hStyle));
       return;
     }
