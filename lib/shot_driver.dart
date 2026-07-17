@@ -23,18 +23,32 @@ Future<void> shotSetup() async {
   await prefs.setString('vault_path', _shotVault);
 }
 
+Future<void> _shot(String name) async {
+  await Future.delayed(const Duration(seconds: 2));
+  final boundary =
+      shotBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+  if (boundary == null) return;
+  final image = await boundary.toImage(pixelRatio: 2);
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  await File('$shotDir/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
+}
+
 Future<void> shotRun(ProviderContainer container) async {
   if (shotDir.isEmpty) return;
   await Future.delayed(const Duration(seconds: 4));
   for (final section in ShellSection.values) {
     container.read(shellSectionProvider.notifier).select(section);
-    await Future.delayed(const Duration(seconds: 2));
-    final boundary =
-        shotBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null) continue;
-    final image = await boundary.toImage(pixelRatio: 2);
-    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    await File('$shotDir/${section.name}.png').writeAsBytes(bytes!.buffer.asUint8List());
+    await _shot(section.name);
+  }
+  final index = container.read(indexProvider).value;
+  final slug = index?.entriesByDb.keys.firstWhere((s) => s != 'projects', orElse: () => '');
+  if (slug != null && slug.isNotEmpty) {
+    container.read(shellSectionProvider.notifier).select(ShellSection.databases);
+    container.read(databasesNavProvider.notifier).showTable(slug);
+    await _shot('db_table');
+    final first = index!.entriesByDb[slug]!.first;
+    container.read(databasesNavProvider.notifier).showEntry(slug, path: first.path);
+    await _shot('db_entry');
   }
   exit(0);
 }

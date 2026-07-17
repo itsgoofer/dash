@@ -6,11 +6,17 @@ import 'markdown_editing_controller.dart';
 /// Reusable note body editor: a full-height markdown TextField styled as a
 /// document, on a ~720px reading measure, borderless (sits on bg0).
 class NoteEditor extends StatefulWidget {
-  const NoteEditor({super.key, required this.initialText, required this.onChanged, this.autofocus = false});
+  const NoteEditor(
+      {super.key,
+      required this.initialText,
+      required this.onChanged,
+      this.autofocus = false,
+      this.centered = true});
 
   final String initialText;
   final ValueChanged<String> onChanged;
   final bool autofocus;
+  final bool centered;
 
   @override
   State<NoteEditor> createState() => _NoteEditorState();
@@ -38,7 +44,7 @@ class _NoteEditorState extends State<NoteEditor> {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.topCenter,
+      alignment: widget.centered ? Alignment.topCenter : Alignment.topLeft,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: TextField(

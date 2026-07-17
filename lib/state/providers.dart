@@ -8,6 +8,8 @@ import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/frontmatter.dart';
+import '../core/models/db_schema.dart';
+import '../core/models/note.dart';
 import '../vault/index.dart';
 import '../vault/vault_fs.dart';
 import '../vault/vault_watcher.dart';
@@ -320,3 +322,219 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
     activeProjects: activeProjects,
   );
 });
+
+// ─── Databases ──────────────────────────────────────────────────────────────
+
+/// In-section navigation (db gallery → table → entry), no router — mirrors
+/// [ShellSectionNotifier] one level down.
+sealed class DatabasesView {
+  const DatabasesView();
+}
+
+class DbListView extends DatabasesView {
+  const DbListView();
+}
+
+class DbTableView extends DatabasesView {
+  const DbTableView(this.slug);
+  final String slug;
+}
+
+class DbEntryView extends DatabasesView {
+  const DbEntryView(this.slug, {this.path});
+  final String slug;
+  final String? path; // null = new (unsaved) entry
+}
+
+class DatabasesNavNotifier extends Notifier<DatabasesView> {
+  @override
+  DatabasesView build() => const DbListView();
+
+  void showList() => state = const DbListView();
+  void showTable(String slug) => state = DbTableView(slug);
+  void showEntry(String slug, {String? path}) => state = DbEntryView(slug, path: path);
+}
+
+final databasesNavProvider =
+    NotifierProvider<DatabasesNavNotifier, DatabasesView>(DatabasesNavNotifier.new);
+
+final dbSchemaProvider = Provider.family<DbSchema?, String>(
+  (ref, slug) => ref.watch(indexProvider).value?.schemas[slug],
+);
+
+final dbRowsProvider = Provider.family<List<NoteMeta>, String>(
+  (ref, slug) => ref.watch(indexProvider).value?.entriesByDb[slug] ?? const [],
+);
+
+typedef DbEntryKey = ({String slug, String? path});
+
+/// Loaded db entry: typed field values (incl. `title`) + body, with
+/// editing/dirty status — mirrors [JournalDoc].
+class DbEntryDoc {
+  const DbEntryDoc({
+    required this.slug,
+    required this.path,
+    required this.fields,
+    required this.body,
+    required this.exists,
+    this.dirty = false,
+    this.changedOnDisk = false,
+  });
+
+  final String slug;
+  final String? path; // vault-relative; null until first save
+  final Map<String, dynamic> fields;
+  final String body;
+  final bool exists;
+  final bool dirty;
+  final bool changedOnDisk;
+
+  DbEntryDoc copyWith({
+    String? path,
+    Map<String, dynamic>? fields,
+    String? body,
+    bool? exists,
+    bool? dirty,
+    bool? changedOnDisk,
+  }) =>
+      DbEntryDoc(
+        slug: slug,
+        path: path ?? this.path,
+        fields: fields ?? this.fields,
+        body: body ?? this.body,
+        exists: exists ?? this.exists,
+        dirty: dirty ?? this.dirty,
+        changedOnDisk: changedOnDisk ?? this.changedOnDisk,
+      );
+}
+
+const _deepEq = DeepCollectionEquality();
+
+String _sanitizeTitle(String title) {
+  final t = title.trim();
+  return (t.isEmpty ? 'Untitled' : t).replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+}
+
+/// Entry note for a database: loads fields+body, autosaves ~1s after the last
+/// edit (renaming the file if the title changed), and reacts to external
+/// on-disk changes — mirrors [JournalNoteNotifier].
+class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
+  DbEntryNotifier(this.key);
+  final DbEntryKey key;
+
+  Timer? _timer;
+  late String _root;
+  String? _abs; // current on-disk absolute path; null if never saved
+  int? _indexHash;
+
+  DbSchema get _schema => ref.read(indexProvider).value!.schemas[key.slug]!;
+  List<String> get _keyOrder => ['type', 'db', ...(_schema.fields.map((f) => f.name))];
+
+  String _absFor(String title) => p.join(_root, _schema.folder, '${_sanitizeTitle(title)}.md');
+  String _relOf(String abs) => p.relative(abs, from: _root).replaceAll('\\', '/');
+
+  @override
+  Future<DbEntryDoc> build() async {
+    _root = (await ref.read(vaultPathProvider.future))!;
+    ref.onDispose(() => _timer?.cancel());
+
+    if (key.path == null) {
+      return DbEntryDoc(
+        slug: key.slug,
+        path: null,
+        fields: {for (final f in _schema.fields) f.name: f.type == FieldType.checkbox ? false : null},
+        body: '',
+        exists: false,
+      );
+    }
+
+    _abs = p.join(_root, key.path!);
+    _indexHash = ref.read(indexProvider).value?.byPath[key.path!]?.contentHash;
+    ref.listen(indexProvider, (_, next) {
+      final h = next.value?.byPath[key.path!]?.contentHash;
+      if (h == _indexHash) return;
+      _indexHash = h;
+      _onExternalChange();
+    });
+    return _readFromDisk();
+  }
+
+  Future<DbEntryDoc> _readFromDisk() async {
+    final file = File(_abs!);
+    if (!await file.exists()) {
+      return DbEntryDoc(slug: key.slug, path: null, fields: const {}, body: '', exists: false);
+    }
+    final parsed = Frontmatter.parse(await file.readAsString());
+    final fields = Map<String, dynamic>.of(parsed.data)
+      ..remove('type')
+      ..remove('db');
+    return DbEntryDoc(slug: key.slug, path: _relOf(_abs!), fields: fields, body: parsed.body, exists: true);
+  }
+
+  void setField(String name, dynamic value) {
+    final d = state.value;
+    if (d == null) return;
+    final fields = Map<String, dynamic>.of(d.fields)..[name] = value;
+    state = AsyncData(d.copyWith(fields: fields, dirty: true));
+    _schedule();
+  }
+
+  void setBody(String body) {
+    final d = state.value;
+    if (d == null || d.body == body) return;
+    state = AsyncData(d.copyWith(body: body, dirty: true));
+    _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(seconds: 1), _flush);
+  }
+
+  Future<void> _flush() async {
+    final d = state.value;
+    if (d == null || !d.dirty) return;
+    final title = (d.fields['title'] as String?)?.trim() ?? '';
+    if (title.isEmpty) return; // needs a title before it can be written
+
+    final newAbs = _absFor(title);
+    final content = _serialize(d);
+    await ref.read(vaultFsProvider).writeNote(newAbs, content);
+    if (_abs != null && _abs != newAbs) {
+      await ref.read(vaultFsProvider).deleteNote(_abs!);
+    }
+    _abs = newAbs;
+
+    final cur = state.value;
+    if (cur != null && cur.body == d.body && _deepEq.equals(cur.fields, d.fields)) {
+      state = AsyncData(cur.copyWith(dirty: false, exists: true, path: _relOf(newAbs)));
+    }
+  }
+
+  String _serialize(DbEntryDoc d) {
+    final data = <String, dynamic>{'type': 'db', 'db': key.slug, ...d.fields};
+    return Frontmatter.serialize(data, d.body, keyOrder: _keyOrder);
+  }
+
+  Future<void> _onExternalChange() async {
+    final d = state.value;
+    if (d == null || _abs == null) return;
+    final incoming = await _readFromDisk();
+    if (incoming.body == d.body && _deepEq.equals(incoming.fields, d.fields)) return;
+    if (d.dirty) {
+      state = AsyncData(d.copyWith(changedOnDisk: true));
+    } else {
+      state = AsyncData(incoming);
+    }
+  }
+
+  /// Discards local edits and reloads from disk (banner "Reload" action).
+  Future<void> reload() async {
+    _timer?.cancel();
+    if (_abs == null) return;
+    state = AsyncData(await _readFromDisk());
+  }
+}
+
+final dbEntryProvider =
+    AsyncNotifierProvider.family<DbEntryNotifier, DbEntryDoc, DbEntryKey>(DbEntryNotifier.new);

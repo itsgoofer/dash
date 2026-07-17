@@ -1,3 +1,10 @@
+String _yamlStr(String s) {
+  final safe = RegExp(r'^[A-Za-z0-9][A-Za-z0-9 _-]*$').hasMatch(s);
+  return safe ? s : "'${s.replaceAll("'", "''")}'";
+}
+
+String _yamlNum(double v) => v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+
 enum FieldType {
   text,
   number,
@@ -37,6 +44,17 @@ class DbField {
   final double? min;
   final double? max;
   final List<String>? options;
+
+  /// Flow-map yaml for one line of a schema's `fields:` list.
+  String toYaml() {
+    final b = StringBuffer('{name: ${_yamlStr(name)}, type: ${type.name}');
+    if (required) b.write(', required: true');
+    if (min != null) b.write(', min: ${_yamlNum(min!)}');
+    if (max != null) b.write(', max: ${_yamlNum(max!)}');
+    if (options != null) b.write(', options: [${options!.map(_yamlStr).join(', ')}]');
+    b.write('}');
+    return b.toString();
+  }
 }
 
 /// User-defined database schema, loaded from `.dash/databases/<key>.yaml`.
@@ -54,4 +72,13 @@ class DbSchema {
   final String name;
   final String folder;
   final List<DbField> fields;
+
+  /// Serializes to `.dash/databases/<slug>.yaml` content.
+  String toYaml() {
+    final b = StringBuffer('name: ${_yamlStr(name)}\nfolder: ${_yamlStr(folder)}\nfields:\n');
+    for (final f in fields) {
+      b.writeln('  - ${f.toYaml()}');
+    }
+    return b.toString();
+  }
 }

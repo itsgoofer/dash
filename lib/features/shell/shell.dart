@@ -11,6 +11,7 @@ import '../../widgets/dash_icon.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/glow_text.dart';
 import '../dashboard/dashboard_screen.dart';
+import '../databases/databases_screen.dart';
 import '../journal/journal_screen.dart';
 import 'vault_picker.dart';
 
@@ -70,6 +71,7 @@ class Shell extends ConsumerWidget {
                     child: switch (selected) {
                       ShellSection.dashboard => const DashboardScreen(),
                       ShellSection.journal => const JournalScreen(),
+                      ShellSection.databases => const DatabasesScreen(),
                       _ => EmptyState(
                           icon: _placeholders[selected]!.icon,
                           message: _placeholders[selected]!.message,

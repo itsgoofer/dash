@@ -86,6 +86,13 @@ class VaultFs {
     return p.join('Attachments', year, candidate).replaceAll('\\', '/');
   }
 
+  /// Deletes a note (used for database entries/schemas). No self-write
+  /// registration needed — the watcher's `!exists()` check picks it up.
+  Future<void> deleteNote(String absPath) async {
+    final file = File(absPath);
+    if (await file.exists()) await file.delete();
+  }
+
   Future<void> writeBytesAtomic(String absPath, List<int> bytes) async {
     await File(absPath).parent.create(recursive: true);
     _expectedWrites[absPath] = _ExpectedWrite(fnv1a(bytes), _now().add(_ttl));

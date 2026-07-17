@@ -14,7 +14,7 @@ Today view, 5 glowing metric sliders (write frontmatter invisibly), document-sty
 ## Phase 3 — Dashboard  [x]
 Greeting, stat tiles (projects, tasks, streak), fl_chart 14-day area chart (rating/energy/productivity) from `dashboardMetricsProvider`, brain visual (CustomPainter, ~300 particles, neighbor edges, rotation, glow; paused on blur).
 
-## Phase 4 — Databases  [ ]
+## Phase 4 — Databases  [x]
 Schema yaml parse, db list, typed sortable table view from index, entry create/edit (typed form + body editor), in-app new-database + field editor writing `.dash/databases/*.yaml`. Databases are fully user-defined — no presets ship with the app (Projects is the only built-in); creating one in-app is the primary flow, so make it first-class and polished.
 
 ## Phase 5 — Projects  [ ]
