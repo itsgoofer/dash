@@ -13,11 +13,13 @@ class StatTiles extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(dashboardStatsProvider);
+    final openTasks = ref.watch(dashboardOpenTasksProvider);
     final tiles = [
       (icon: 'calendar_today', label: 'Day streak', value: s.streak),
       (icon: 'book_2', label: 'Entries this week', value: s.entriesThisWeek),
       (icon: 'folder_open', label: 'Total notes', value: s.totalNotes),
       (icon: 'deployed_code', label: 'Active projects', value: s.activeProjects),
+      (icon: 'check', label: 'Open tasks', value: openTasks),
     ];
     return Row(
       children: [

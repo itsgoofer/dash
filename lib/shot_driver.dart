@@ -50,5 +50,10 @@ Future<void> shotRun(ProviderContainer container) async {
     container.read(databasesNavProvider.notifier).showEntry(slug, path: first.path);
     await _shot('db_entry');
   }
+  if (index != null && index.projects.isNotEmpty) {
+    container.read(shellSectionProvider.notifier).select(ShellSection.projects);
+    container.read(projectsNavProvider.notifier).showDetail(index.projects.first.path);
+    await _shot('projects_detail');
+  }
   exit(0);
 }

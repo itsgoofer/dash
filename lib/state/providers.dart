@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/frontmatter.dart';
 import '../core/models/db_schema.dart';
 import '../core/models/note.dart';
+import '../core/tasks.dart';
 import '../vault/index.dart';
 import '../vault/vault_fs.dart';
 import '../vault/vault_watcher.dart';
@@ -323,6 +324,20 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
   );
 });
 
+/// Open (unchecked) task count across active projects, using the same cached,
+/// hash-invalidated body reads as the projects list — only active projects'
+/// bodies are read, never the whole vault.
+final dashboardOpenTasksProvider = Provider<int>((ref) {
+  final index = ref.watch(indexProvider).value;
+  if (index == null) return 0;
+  var total = 0;
+  for (final proj in index.projects.where((p) => p.frontmatter['status'] == 'active')) {
+    final counts = ref.watch(projectTaskCountsProvider(proj.path));
+    total += (counts.value?.total ?? 0) - (counts.value?.done ?? 0);
+  }
+  return total;
+});
+
 // ─── Databases ──────────────────────────────────────────────────────────────
 
 /// In-section navigation (db gallery → table → entry), no router — mirrors
@@ -427,8 +442,16 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
   String? _abs; // current on-disk absolute path; null if never saved
   int? _indexHash;
 
+  /// Projects are the one built-in db whose notes use `type: project` (no
+  /// `db:` key) per the vault format spec — every other db uses `type: db`.
+  bool get _isProject => key.slug == 'projects';
+
   DbSchema get _schema => ref.read(indexProvider).value!.schemas[key.slug]!;
-  List<String> get _keyOrder => ['type', 'db', ...(_schema.fields.map((f) => f.name))];
+  List<String> get _keyOrder => [
+        'type',
+        if (!_isProject) 'db',
+        ...(_schema.fields.map((f) => f.name)),
+      ];
 
   String _absFor(String title) => p.join(_root, _schema.folder, '${_sanitizeTitle(title)}.md');
   String _relOf(String abs) => p.relative(abs, from: _root).replaceAll('\\', '/');
@@ -512,7 +535,11 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
   }
 
   String _serialize(DbEntryDoc d) {
-    final data = <String, dynamic>{'type': 'db', 'db': key.slug, ...d.fields};
+    final data = <String, dynamic>{
+      'type': _isProject ? 'project' : 'db',
+      if (!_isProject) 'db': key.slug,
+      ...d.fields,
+    };
     return Frontmatter.serialize(data, d.body, keyOrder: _keyOrder);
   }
 
@@ -538,3 +565,44 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
 
 final dbEntryProvider =
     AsyncNotifierProvider.family<DbEntryNotifier, DbEntryDoc, DbEntryKey>(DbEntryNotifier.new);
+
+// ─── Projects ───────────────────────────────────────────────────────────────
+
+/// In-section navigation (list → detail), no router — mirrors [DatabasesView].
+sealed class ProjectsView {
+  const ProjectsView();
+}
+
+class ProjectsListView extends ProjectsView {
+  const ProjectsListView();
+}
+
+class ProjectDetailView extends ProjectsView {
+  const ProjectDetailView(this.path);
+  final String path;
+}
+
+class ProjectsNavNotifier extends Notifier<ProjectsView> {
+  @override
+  ProjectsView build() => const ProjectsListView();
+
+  void showList() => state = const ProjectsListView();
+  void showDetail(String path) => state = ProjectDetailView(path);
+}
+
+final projectsNavProvider =
+    NotifierProvider<ProjectsNavNotifier, ProjectsView>(ProjectsNavNotifier.new);
+
+/// Cached done/total task count for the project note at [path]. Only
+/// recomputes when that path's index content hash changes (family caching
+/// keeps unrelated projects from being re-read), so cards can show progress
+/// lazily without loading the whole vault's bodies.
+final projectTaskCountsProvider = FutureProvider.family<TaskCounts, String>((ref, path) async {
+  final hash = ref.watch(indexProvider.select((a) => a.value?.byPath[path]?.contentHash));
+  if (hash == null) return TaskCounts.zero;
+  final root = await ref.watch(vaultPathProvider.future);
+  if (root == null) return TaskCounts.zero;
+  final file = File(p.join(root, path));
+  if (!await file.exists()) return TaskCounts.zero;
+  return TaskCounts.from(Frontmatter.parse(await file.readAsString()).body);
+});

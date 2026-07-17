@@ -8,11 +8,11 @@ import 'package:path/path.dart' as p;
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
-import '../../widgets/empty_state.dart';
 import '../../widgets/glow_text.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../databases/databases_screen.dart';
 import '../journal/journal_screen.dart';
+import '../projects/projects_screen.dart';
 import 'vault_picker.dart';
 
 /// Top-level gate: shows the vault picker until a vault path is chosen, then
@@ -44,13 +44,6 @@ class Shell extends ConsumerWidget {
     (section: ShellSection.projects, icon: 'deployed_code', label: 'Projects'),
   ];
 
-  static const _placeholders = {
-    ShellSection.dashboard: (icon: 'dashboard', message: 'Dashboard coming online…'),
-    ShellSection.journal: (icon: 'book_2', message: 'Journal coming online…'),
-    ShellSection.databases: (icon: 'database', message: 'Databases coming online…'),
-    ShellSection.projects: (icon: 'deployed_code', message: 'Projects coming online…'),
-  };
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(shellSectionProvider);
@@ -72,10 +65,7 @@ class Shell extends ConsumerWidget {
                       ShellSection.dashboard => const DashboardScreen(),
                       ShellSection.journal => const JournalScreen(),
                       ShellSection.databases => const DatabasesScreen(),
-                      _ => EmptyState(
-                          icon: _placeholders[selected]!.icon,
-                          message: _placeholders[selected]!.message,
-                        ),
+                      ShellSection.projects => const ProjectsScreen(),
                     },
                   ),
                 ),
