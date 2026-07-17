@@ -28,23 +28,33 @@ class MetricCharts extends ConsumerWidget {
         if (empty) return const _EmptyChart();
         const labelStrip = 76.0, bottomAxis = 22.0, topPad = 6.0;
         final plotH = c.maxHeight - bottomAxis - topPad;
+        const minGap = 16.0;
+        final labels = [
+          for (final s in _series)
+            if (_lastValue(metrics, s.key) case final v?)
+              (s.label, s.color, (topPad + (1 - v / 10) * plotH - 8).clamp(0.0, c.maxHeight - minGap)),
+        ]..sort((a, b) => a.$3.compareTo(b.$3));
+        for (var i = 1; i < labels.length; i++) {
+          if (labels[i].$3 - labels[i - 1].$3 < minGap) {
+            labels[i] = (labels[i].$1, labels[i].$2, labels[i - 1].$3 + minGap);
+          }
+        }
         return Stack(
           children: [
             Padding(
               padding: const EdgeInsets.only(right: labelStrip),
               child: LineChart(_data(metrics), duration: DashMotion.chart, curve: DashMotion.curve),
             ),
-            for (final s in _series)
-              if (_lastValue(metrics, s.key) case final v?)
-                Positioned(
-                  right: 0,
-                  width: labelStrip,
-                  top: (topPad + (1 - v / 10) * plotH - 8).clamp(0.0, c.maxHeight - 16),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: DashSpace.x2),
-                    child: Text(s.label, style: DashType.small.copyWith(color: s.color, fontWeight: FontWeight.w600)),
-                  ),
+            for (final (label, color, top) in labels)
+              Positioned(
+                right: 0,
+                width: labelStrip,
+                top: top,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: DashSpace.x2),
+                  child: Text(label, style: DashType.small.copyWith(color: color, fontWeight: FontWeight.w600)),
                 ),
+              ),
           ],
         );
       },

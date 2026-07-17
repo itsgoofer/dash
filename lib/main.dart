@@ -6,6 +6,7 @@ import 'package:macos_window_utils/macos_window_utils.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'shot_driver.dart';
 
 const _minSize = Size(1100, 720);
 const _defaultSize = Size(1440, 900);
@@ -33,5 +34,11 @@ Future<void> main() async {
     await windowManager.focus();
   });
 
-  runApp(const ProviderScope(child: DashApp()));
+  await shotSetup();
+  final container = ProviderContainer();
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: RepaintBoundary(key: shotBoundaryKey, child: const DashApp()),
+  ));
+  shotRun(container);
 }

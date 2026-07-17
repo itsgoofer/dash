@@ -55,6 +55,8 @@ class _NoteEditorState extends State<NoteEditor> {
             isCollapsed: true,
             filled: false,
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
             hintText: "Nothing logged yet — today's a blank page.",
           ),
         ),
