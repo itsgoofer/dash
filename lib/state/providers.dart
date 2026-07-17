@@ -257,3 +257,66 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
 
 final journalNoteProvider =
     AsyncNotifierProvider.family<JournalNoteNotifier, JournalDoc, DateTime>(JournalNoteNotifier.new);
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+/// One day's charted metrics (frontmatter only). `null` fields = missing → gap.
+class DayMetrics {
+  const DayMetrics(this.date, this.rating, this.energy, this.productivity);
+  final DateTime date;
+  final int? rating, energy, productivity;
+
+  bool get isEmpty => rating == null && energy == null && productivity == null;
+}
+
+/// Last 14 days (oldest→today) of rating/energy/productivity from the index.
+final dashboardMetricsProvider = Provider<List<DayMetrics>>((ref) {
+  final index = ref.watch(indexProvider).value;
+  final today = _today();
+  return List.generate(14, (i) {
+    final d = DateTime(today.year, today.month, today.day - 13 + i);
+    final fm = index?.journalByDate[d]?.frontmatter;
+    int? m(String k) => fm != null && fm[k] is int ? fm[k] as int : null;
+    return DayMetrics(d, m('rating'), m('energy'), m('productivity'));
+  });
+});
+
+/// Rolled-up dashboard tile figures derived from the index.
+class DashboardStats {
+  const DashboardStats({
+    required this.streak,
+    required this.entriesThisWeek,
+    required this.totalNotes,
+    required this.activeProjects,
+  });
+  final int streak, entriesThisWeek, totalNotes, activeProjects;
+  static const empty = DashboardStats(streak: 0, entriesThisWeek: 0, totalNotes: 0, activeProjects: 0);
+}
+
+final dashboardStatsProvider = Provider<DashboardStats>((ref) {
+  final index = ref.watch(indexProvider).value;
+  if (index == null) return DashboardStats.empty;
+  final today = _today();
+  bool logged(DateTime d) => index.journalByDate.containsKey(DateTime(d.year, d.month, d.day));
+
+  // Streak: consecutive logged days counting back from today (a not-yet-logged
+  // today doesn't break a run that ended yesterday).
+  var day = logged(today) ? today : DateTime(today.year, today.month, today.day - 1);
+  var streak = 0;
+  while (logged(day)) {
+    streak++;
+    day = DateTime(day.year, day.month, day.day - 1);
+  }
+
+  final weekStart = DateTime(today.year, today.month, today.day - 6);
+  final entriesThisWeek =
+      index.journalByDate.keys.where((d) => !d.isBefore(weekStart) && !d.isAfter(today)).length;
+  final activeProjects = index.projects.where((p) => p.frontmatter['status'] == 'active').length;
+
+  return DashboardStats(
+    streak: streak,
+    entriesThisWeek: entriesThisWeek,
+    totalNotes: index.byPath.length,
+    activeProjects: activeProjects,
+  );
+});

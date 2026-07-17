@@ -10,6 +10,7 @@ import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/glow_text.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../journal/journal_screen.dart';
 import 'vault_picker.dart';
 
@@ -66,12 +67,14 @@ class Shell extends ConsumerWidget {
                   duration: const Duration(milliseconds: 200),
                   child: KeyedSubtree(
                     key: ValueKey(selected),
-                    child: selected == ShellSection.journal
-                        ? const JournalScreen()
-                        : EmptyState(
-                            icon: _placeholders[selected]!.icon,
-                            message: _placeholders[selected]!.message,
-                          ),
+                    child: switch (selected) {
+                      ShellSection.dashboard => const DashboardScreen(),
+                      ShellSection.journal => const JournalScreen(),
+                      _ => EmptyState(
+                          icon: _placeholders[selected]!.icon,
+                          message: _placeholders[selected]!.message,
+                        ),
+                    },
                   ),
                 ),
               ),

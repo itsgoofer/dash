@@ -11,7 +11,7 @@ Vault picker (open/create), scaffold creation, frontmatter parse/serialize, `Vau
 ## Phase 2 — Journal + basic editor  [x]
 Today view, 5 glowing metric sliders (write frontmatter invisibly), document-styled source editor (Stage A), 1s-idle autosave, prev/next day nav + backfill.
 
-## Phase 3 — Dashboard  [ ]
+## Phase 3 — Dashboard  [x]
 Greeting, stat tiles (projects, tasks, streak), fl_chart 14-day area chart (rating/energy/productivity) from `dashboardMetricsProvider`, brain visual (CustomPainter, ~300 particles, neighbor edges, rotation, glow; paused on blur).
 
 ## Phase 4 — Databases  [ ]
