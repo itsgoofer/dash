@@ -10,6 +10,7 @@ import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/glow_text.dart';
+import '../journal/journal_screen.dart';
 import 'vault_picker.dart';
 
 /// Top-level gate: shows the vault picker until a vault path is chosen, then
@@ -65,10 +66,12 @@ class Shell extends ConsumerWidget {
                   duration: const Duration(milliseconds: 200),
                   child: KeyedSubtree(
                     key: ValueKey(selected),
-                    child: EmptyState(
-                      icon: _placeholders[selected]!.icon,
-                      message: _placeholders[selected]!.message,
-                    ),
+                    child: selected == ShellSection.journal
+                        ? const JournalScreen()
+                        : EmptyState(
+                            icon: _placeholders[selected]!.icon,
+                            message: _placeholders[selected]!.message,
+                          ),
                   ),
                 ),
               ),

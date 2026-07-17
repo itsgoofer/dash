@@ -113,6 +113,15 @@ abstract final class DashType {
     fontWeight: FontWeight.w400,
     color: DashColors.text0,
   );
+
+  // Editor scale (body 15 base): dimmed markers rendered separately.
+  static const editorH1 =
+      TextStyle(fontFamily: _family, fontSize: 26, fontWeight: FontWeight.w700, height: 1.35, color: DashColors.text0);
+  static const editorH2 =
+      TextStyle(fontFamily: _family, fontSize: 21, fontWeight: FontWeight.w600, height: 1.35, color: DashColors.text0);
+  static const editorH3 =
+      TextStyle(fontFamily: _family, fontSize: 17, fontWeight: FontWeight.w600, height: 1.4, color: DashColors.text0);
+  static const codeFamily = _mono;
 }
 
 ThemeData buildDashTheme() {
@@ -208,6 +217,14 @@ ThemeData buildDashTheme() {
       thumbColor: Colors.white,
       overlayColor: DashColors.accent.withValues(alpha: 0.15),
       trackHeight: 4,
+      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+      tickMarkShape: const RoundSliderTickMarkShape(tickMarkRadius: 0),
+    ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: DashColors.accent,
+      selectionColor: Color(0x2622D3EE),
+      selectionHandleColor: DashColors.accent,
     ),
     tooltipTheme: TooltipThemeData(
       waitDuration: const Duration(milliseconds: 300),

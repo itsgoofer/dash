@@ -8,7 +8,7 @@ Each phase is shippable. NO test suite (Goofer's call) — verify per phase: `fl
 ## Phase 1 — Vault core  [x]
 Vault picker (open/create), scaffold creation, frontmatter parse/serialize, `VaultFs` atomic writes, `VaultIndex` scan, watcher + debounce + self-write suppression.
 
-## Phase 2 — Journal + basic editor  [ ]
+## Phase 2 — Journal + basic editor  [x]
 Today view, 5 glowing metric sliders (write frontmatter invisibly), document-styled source editor (Stage A), 1s-idle autosave, prev/next day nav + backfill.
 
 ## Phase 3 — Dashboard  [ ]
