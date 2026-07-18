@@ -15,6 +15,7 @@ import '../../widgets/dash_controls.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/empty_state.dart';
 import 'db_widgets.dart';
+import 'schema_editor.dart';
 
 const _actionsWidth = 60.0;
 const _minColWidth = 80.0;
@@ -126,6 +127,9 @@ class _DbTableScreenState extends ConsumerState<DbTableScreen> {
                 vsNotifier.set(vs.copyWith(hidden: next));
               },
             ),
+            const SizedBox(width: DashSpace.x2),
+            DashIconBtn('settings',
+                tooltip: 'Edit database', onTap: () => showSchemaEditor(context, slug: widget.slug)),
             const SizedBox(width: DashSpace.x2),
             DashButton(
               'New entry',

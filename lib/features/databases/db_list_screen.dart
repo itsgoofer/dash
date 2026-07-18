@@ -1,17 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
+import '../../core/models/db_schema.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
+import '../../widgets/confirm_dialog.dart';
+import '../../widgets/dash_controls.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/glass_panel.dart';
 import 'schema_editor.dart';
 
 /// Gallery of user-defined databases (schema cards). Tapping one opens its
-/// table; "New database" opens [showSchemaEditor].
+/// table; hover for edit/delete; "New database" opens [showSchemaEditor].
 class DbListScreen extends ConsumerWidget {
   const DbListScreen({super.key});
+
+  Future<void> _deleteDb(BuildContext context, WidgetRef ref, String slug, DbSchema schema, int count) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Delete database?',
+      message: 'This permanently deletes "${schema.name}" — its schema and '
+          '$count ${count == 1 ? 'entry' : 'entries'} on disk.',
+    );
+    if (!ok) return;
+    final root = ref.read(vaultPathProvider).value;
+    if (root == null) return;
+    final fs = ref.read(vaultFsProvider);
+    await fs.deleteFolder(p.join(root, schema.folder));
+    await fs.deleteNote(p.join(root, '.dash', 'databases', '$slug.yaml'));
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,10 +45,11 @@ class DbListScreen extends ConsumerWidget {
           children: [
             Text('Databases', style: DashType.display),
             const Spacer(),
-            FilledButton.icon(
-              onPressed: () => showSchemaEditor(context),
-              icon: const DashIcon('add', size: 16, color: DashColors.bg0),
-              label: const Text('New database'),
+            DashButton(
+              'New database',
+              icon: 'add',
+              kind: DashButtonKind.primary,
+              onTap: () => showSchemaEditor(context),
             ),
           ],
         ),
@@ -57,6 +77,8 @@ class DbListScreen extends ConsumerWidget {
                       name: schema.name,
                       count: count,
                       onTap: () => ref.read(databasesNavProvider.notifier).showTable(slug),
+                      onEdit: () => showSchemaEditor(context, slug: slug),
+                      onDelete: () => _deleteDb(context, ref, slug, schema, count),
                     );
                   },
                 ),
@@ -67,10 +89,19 @@ class DbListScreen extends ConsumerWidget {
 }
 
 class _DbCard extends StatefulWidget {
-  const _DbCard({required this.name, required this.count, required this.onTap});
+  const _DbCard({
+    required this.name,
+    required this.count,
+    required this.onTap,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
   final String name;
   final int count;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   State<_DbCard> createState() => _DbCardState();
@@ -99,7 +130,17 @@ class _DbCardState extends State<_DbCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DashIcon('database', size: 24, color: _hovering ? DashColors.accent : DashColors.text1),
+                Row(
+                  children: [
+                    DashIcon('database', size: 24, color: _hovering ? DashColors.accent : DashColors.text1),
+                    const Spacer(),
+                    if (_hovering) ...[
+                      DashIconBtn('edit', size: 14, tooltip: 'Edit database', onTap: widget.onEdit),
+                      DashIconBtn('delete',
+                          size: 14, color: DashColors.danger, tooltip: 'Delete database', onTap: widget.onDelete),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: DashSpace.x2),
                 Text(widget.name, style: DashType.title, overflow: TextOverflow.ellipsis),
                 const Spacer(),

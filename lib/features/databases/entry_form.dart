@@ -188,7 +188,7 @@ class _FieldControlState extends State<_FieldControl> {
           },
         );
       case FieldType.date:
-        control = DashTextField(controller: _controller, hint: 'yyyy-mm-dd', onChanged: widget.onChanged);
+        control = DashDateField(value: widget.value?.toString(), onChanged: widget.onChanged);
       case FieldType.number:
         control = DashTextField(
           controller: _controller,

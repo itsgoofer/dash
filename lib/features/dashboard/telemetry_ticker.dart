@@ -11,7 +11,7 @@ import '../../theme/dash_theme.dart';
 import 'brain/brain_view.dart';
 
 /// Scrolling sci-fi telemetry overlay: ~6 visible mono lines, every one TRUE,
-/// computed from providers/system state. A new line types in every ~1.7s;
+/// computed from providers/system state. A new line types in every ~0.85s;
 /// older lines shift up and dim. One Column + one Timer — no per-frame paint.
 class TelemetryTicker extends ConsumerStatefulWidget {
   const TelemetryTicker({super.key});
@@ -31,7 +31,7 @@ class _TelemetryTickerState extends ConsumerState<TelemetryTicker> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _push());
-    _timer = Timer.periodic(const Duration(milliseconds: 1700), (_) => _push());
+    _timer = Timer.periodic(const Duration(milliseconds: 850), (_) => _push());
   }
 
   @override

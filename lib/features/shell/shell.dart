@@ -30,15 +30,14 @@ class AppRoot extends ConsumerWidget {
     final booted = ref.watch(bootCompleteProvider);
     return switch (vaultPath) {
       AsyncData(:final value) when value != null => Stack(
-          fit: StackFit.expand,
-          children: [
-            const Shell(),
-            if (!booted) const BootScreen(),
-          ],
-        ),
+        fit: StackFit.expand,
+        children: [const Shell(), if (!booted) const BootScreen()],
+      ),
       AsyncLoading() => Scaffold(
         backgroundColor: DashColors.bg0,
-        body: Center(child: CircularProgressIndicator(color: DashColors.accent)),
+        body: Center(
+          child: CircularProgressIndicator(color: DashColors.accent),
+        ),
       ),
       _ => const VaultPicker(),
     };
@@ -57,7 +56,10 @@ class Shell extends ConsumerWidget {
 
   /// Section switch: fade + 8px vertical drift + 0.985→1 scale.
   static Widget _transition(Widget child, Animation<double> animation) {
-    final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+    );
     return FadeTransition(
       opacity: curved,
       child: AnimatedBuilder(
@@ -65,7 +67,10 @@ class Shell extends ConsumerWidget {
         child: child,
         builder: (context, child) => Transform.translate(
           offset: Offset(0, 8 * (1 - curved.value)),
-          child: Transform.scale(scale: 0.985 + 0.015 * curved.value, child: child),
+          child: Transform.scale(
+            scale: 0.985 + 0.015 * curved.value,
+            child: child,
+          ),
         ),
       ),
     );
@@ -148,11 +153,14 @@ class _HudBar extends StatelessWidget {
         Container(
           height: 1,
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [
-              DashColors.accent.withValues(alpha: 0.45),
-              DashColors.accent.withValues(alpha: 0.10),
-              DashColors.glassBorder,
-            ], stops: const [0, 0.25, 1]),
+            gradient: LinearGradient(
+              colors: [
+                DashColors.accent.withValues(alpha: 0.45),
+                DashColors.accent.withValues(alpha: 0.10),
+                DashColors.glassBorder,
+              ],
+              stops: const [0, 0.25, 1],
+            ),
           ),
         ),
       ],
@@ -168,7 +176,8 @@ class _StatusDot extends StatefulWidget {
   State<_StatusDot> createState() => _StatusDotState();
 }
 
-class _StatusDotState extends State<_StatusDot> with SingleTickerProviderStateMixin {
+class _StatusDotState extends State<_StatusDot>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
@@ -183,14 +192,22 @@ class _StatusDotState extends State<_StatusDot> with SingleTickerProviderStateMi
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween(begin: 0.35, end: 1.0).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
+      opacity: Tween(
+        begin: 0.35,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
       child: Container(
         width: 6,
         height: 6,
         decoration: BoxDecoration(
           color: DashColors.accent,
           borderRadius: BorderRadius.circular(1),
-          boxShadow: [BoxShadow(color: DashColors.accent.withValues(alpha: 0.7), blurRadius: 6)],
+          boxShadow: [
+            BoxShadow(
+              color: DashColors.accent.withValues(alpha: 0.7),
+              blurRadius: 6,
+            ),
+          ],
         ),
       ),
     );
@@ -212,7 +229,8 @@ class _HudTabsState extends ConsumerState<_HudTabs> {
 
   void _measure(ShellSection selected) {
     final row = _rowKey.currentContext?.findRenderObject() as RenderBox?;
-    final tab = _tabKeys[selected]?.currentContext?.findRenderObject() as RenderBox?;
+    final tab =
+        _tabKeys[selected]?.currentContext?.findRenderObject() as RenderBox?;
     if (row == null || tab == null || !row.attached || !tab.attached) return;
     final origin = tab.localToGlobal(Offset.zero, ancestor: row);
     final rect = Rect.fromLTWH(origin.dx, 0, tab.size.width, 2);
@@ -224,38 +242,51 @@ class _HudTabsState extends ConsumerState<_HudTabs> {
     final selected = ref.watch(shellSectionProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure(selected));
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Row(
-          key: _rowKey,
-          children: [
-            for (final item in Shell._sections)
-              _HudTab(
-                key: _tabKeys[item.section],
-                icon: item.icon,
-                label: item.label,
-                selected: selected == item.section,
-                onTap: () => ref.read(shellSectionProvider.notifier).select(item.section),
-              ),
-          ],
-        ),
-        if (_indicator != null)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            left: _indicator!.left,
-            width: _indicator!.width,
-            bottom: 0,
-            height: 2,
-            child: Container(
-              decoration: BoxDecoration(
-                color: DashColors.accent,
-                boxShadow: [BoxShadow(color: DashColors.accent.withValues(alpha: 0.65), blurRadius: 6)],
+    // scaleDown: at narrow window widths the tab strip shrinks a touch
+    // instead of overflowing the HUD bar.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Row(
+            key: _rowKey,
+            children: [
+              for (final item in Shell._sections)
+                _HudTab(
+                  key: _tabKeys[item.section],
+                  icon: item.icon,
+                  label: item.label,
+                  selected: selected == item.section,
+                  onTap: () => ref
+                      .read(shellSectionProvider.notifier)
+                      .select(item.section),
+                ),
+            ],
+          ),
+          if (_indicator != null)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              left: _indicator!.left,
+              width: _indicator!.width,
+              bottom: 0,
+              height: 2,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: DashColors.accent,
+                  boxShadow: [
+                    BoxShadow(
+                      color: DashColors.accent.withValues(alpha: 0.65),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -286,8 +317,8 @@ class _HudTabState extends State<_HudTab> {
     final color = widget.selected
         ? DashColors.accent
         : _hovering
-            ? DashColors.text0
-            : DashColors.text1;
+        ? DashColors.text0
+        : DashColors.text1;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
@@ -336,7 +367,10 @@ class _HudClockState extends State<_HudClock> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() => _now = DateTime.now()));
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => setState(() => _now = DateTime.now()),
+    );
   }
 
   @override
@@ -346,8 +380,10 @@ class _HudClockState extends State<_HudClock> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      Text(_fmt.format(_now), style: DashType.clockSmall.copyWith(color: DashColors.text1));
+  Widget build(BuildContext context) => Text(
+    _fmt.format(_now),
+    style: DashType.clockSmall.copyWith(color: DashColors.text1),
+  );
 }
 
 /// Condensed vault chip: vault name plus the conflicted-copy warning that
@@ -369,7 +405,9 @@ class _VaultChip extends ConsumerWidget {
         color: DashColors.glassFill,
         borderRadius: DashRadius.br,
         border: Border.all(
-          color: conflicts > 0 ? DashColors.warning.withValues(alpha: 0.5) : DashColors.glassBorder,
+          color: conflicts > 0
+              ? DashColors.warning.withValues(alpha: 0.5)
+              : DashColors.glassBorder,
         ),
       ),
       child: Row(
@@ -378,12 +416,18 @@ class _VaultChip extends ConsumerWidget {
           if (conflicts > 0) ...[
             const DashIcon('warning', size: 12, color: DashColors.warning),
             const SizedBox(width: DashSpace.x1),
-            Text('$conflicts', style: DashType.small.copyWith(color: DashColors.warning)),
+            Text(
+              '$conflicts',
+              style: DashType.small.copyWith(color: DashColors.warning),
+            ),
             const SizedBox(width: DashSpace.x2),
           ],
           Text(
             p.basename(vaultPath).toUpperCase(),
-            style: DashType.hudLabel.copyWith(fontSize: 10.5, letterSpacing: 1.5),
+            style: DashType.hudLabel.copyWith(
+              fontSize: 10.5,
+              letterSpacing: 1.5,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -392,7 +436,8 @@ class _VaultChip extends ConsumerWidget {
 
     return conflicts > 0
         ? Tooltip(
-            message: '$conflicts conflicted ${conflicts == 1 ? 'copy' : 'copies'} in the vault',
+            message:
+                '$conflicts conflicted ${conflicts == 1 ? 'copy' : 'copies'} in the vault',
             child: chip,
           )
         : chip;
@@ -410,7 +455,11 @@ class _AccentPicker extends ConsumerWidget {
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(DashColors.bg1),
         shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: DashRadius.br, side: BorderSide(color: DashColors.glassBorder))),
+          RoundedRectangleBorder(
+            borderRadius: DashRadius.br,
+            side: BorderSide(color: DashColors.glassBorder),
+          ),
+        ),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(DashSpace.x2)),
       ),
       menuChildren: [
@@ -432,9 +481,16 @@ class _AccentPicker extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: e.value,
                           borderRadius: DashRadius.br,
-                          border: e.key == current ? Border.all(color: DashColors.text0, width: 1.5) : null,
+                          border: e.key == current
+                              ? Border.all(color: DashColors.text0, width: 1.5)
+                              : null,
                           boxShadow: e.key == current
-                              ? [BoxShadow(color: e.value.withValues(alpha: 0.6), blurRadius: 6)]
+                              ? [
+                                  BoxShadow(
+                                    color: e.value.withValues(alpha: 0.6),
+                                    blurRadius: 6,
+                                  ),
+                                ]
                               : null,
                         ),
                       ),

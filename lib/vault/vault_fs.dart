@@ -93,6 +93,13 @@ class VaultFs {
     if (await file.exists()) await file.delete();
   }
 
+  /// Recursively deletes a folder (database removal). Watcher rescan picks
+  /// up the disappearance.
+  Future<void> deleteFolder(String absPath) async {
+    final dir = Directory(absPath);
+    if (await dir.exists()) await dir.delete(recursive: true);
+  }
+
   Future<void> writeBytesAtomic(String absPath, List<int> bytes) async {
     await File(absPath).parent.create(recursive: true);
     _expectedWrites[absPath] = _ExpectedWrite(fnv1a(bytes), _now().add(_ttl));

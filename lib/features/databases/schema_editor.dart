@@ -8,23 +8,36 @@ import '../../widgets/dash_chip.dart';
 import '../../widgets/dash_controls.dart';
 import '../../widgets/dash_icon.dart';
 
-/// Opens the "new database" dialog: name + field list, writes
-/// `.dash/databases/<slug>.yaml` and jumps to the new (empty) table.
-Future<void> showSchemaEditor(BuildContext context) {
-  return showDialog(context: context, builder: (_) => const _SchemaEditorDialog());
+/// New-database dialog, or — with [slug] — edits an existing schema in place
+/// (name and fields; slug and folder stay stable so entry files never move).
+Future<void> showSchemaEditor(BuildContext context, {String? slug}) {
+  return showDialog(context: context, builder: (_) => _SchemaEditorDialog(slug: slug));
 }
 
 class _SchemaEditorDialog extends ConsumerStatefulWidget {
-  const _SchemaEditorDialog();
+  const _SchemaEditorDialog({this.slug});
+  final String? slug;
 
   @override
   ConsumerState<_SchemaEditorDialog> createState() => _SchemaEditorDialogState();
 }
 
 class _SchemaEditorDialogState extends ConsumerState<_SchemaEditorDialog> {
-  final _nameController = TextEditingController();
-  final List<DbField> _fields = [const DbField(name: 'title', type: FieldType.text, required: true)];
-  final List<TextEditingController> _fieldNameControllers = [TextEditingController(text: 'title')];
+  late final TextEditingController _nameController;
+  late final List<DbField> _fields;
+  late final List<TextEditingController> _fieldNameControllers;
+  bool get _editing => widget.slug != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.slug == null ? null : ref.read(dbSchemaProvider(widget.slug!));
+    _nameController = TextEditingController(text: existing?.name ?? '');
+    _fields = existing != null
+        ? List.of(existing.fields)
+        : [const DbField(name: 'title', type: FieldType.text, required: true)];
+    _fieldNameControllers = [for (final f in _fields) TextEditingController(text: f.name)];
+  }
 
   void _addField() {
     setState(() {
@@ -49,13 +62,15 @@ class _SchemaEditorDialogState extends ConsumerState<_SchemaEditorDialog> {
     super.dispose();
   }
 
-  Future<void> _create() async {
+  Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
-    final slug = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
     final fields = _fields.where((f) => f.name.trim().isNotEmpty).toList();
     if (fields.isEmpty) return;
-    final schema = DbSchema(name: name, folder: 'Databases/$name', fields: fields);
+
+    final existing = _editing ? ref.read(dbSchemaProvider(widget.slug!)) : null;
+    final slug = widget.slug ?? name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+    final schema = DbSchema(name: name, folder: existing?.folder ?? 'Databases/$name', fields: fields);
 
     final root = ref.read(vaultPathProvider).value;
     if (root == null) return;
@@ -71,7 +86,7 @@ class _SchemaEditorDialogState extends ConsumerState<_SchemaEditorDialog> {
     return AlertDialog(
       backgroundColor: DashColors.bg1,
       shape: RoundedRectangleBorder(borderRadius: DashRadius.br, side: BorderSide(color: DashColors.glassBorder)),
-      title: const Text('New database', style: DashType.heading),
+      title: Text(_editing ? 'Edit database' : 'New database', style: DashType.heading),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -90,7 +105,7 @@ class _SchemaEditorDialogState extends ConsumerState<_SchemaEditorDialog> {
                   onTypeChanged: (t) => setState(() => _fields[i] = _fields[i].copyWith(type: t)),
                   onNameChanged: (v) => _fields[i] = _fields[i].copyWith(name: v),
                   onOptionsChanged: (o) => setState(() => _fields[i] = _fields[i].copyWith(options: o)),
-                  onRemove: i == 0 ? null : () => _removeField(i),
+                  onRemove: _fields[i].name == 'title' ? null : () => _removeField(i),
                 ),
               const SizedBox(height: DashSpace.x2),
               DashButton('Add field', icon: 'add', onTap: _addField),
@@ -100,7 +115,7 @@ class _SchemaEditorDialogState extends ConsumerState<_SchemaEditorDialog> {
       ),
       actions: [
         DashButton('Cancel', onTap: () => Navigator.pop(context)),
-        DashButton('Create', kind: DashButtonKind.primary, onTap: _create),
+        DashButton(_editing ? 'Save' : 'Create', kind: DashButtonKind.primary, onTap: _save),
       ],
     );
   }

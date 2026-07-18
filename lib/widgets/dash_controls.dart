@@ -470,15 +470,19 @@ class DashMenuAnchor extends StatefulWidget {
   const DashMenuAnchor({
     super.key,
     required this.triggerBuilder,
-    required this.itemCount,
-    required this.itemBuilder,
+    this.itemCount = 0,
+    this.itemBuilder,
+    this.contentBuilder,
     this.footer,
     this.menuWidth,
   });
 
   final Widget Function(BuildContext, bool open, bool hovering) triggerBuilder;
   final int itemCount;
-  final Widget Function(BuildContext, int index, VoidCallback close) itemBuilder;
+  final Widget Function(BuildContext, int index, VoidCallback close)? itemBuilder;
+
+  /// Arbitrary panel content instead of an item list (e.g. a calendar).
+  final Widget Function(BuildContext, VoidCallback close)? contentBuilder;
   final Widget Function(BuildContext, VoidCallback close)? footer;
   final double? menuWidth;
 
@@ -608,7 +612,8 @@ class _DashMenuAnchorState extends State<DashMenuAnchor> with SingleTickerProvid
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (var i = 0; i < widget.itemCount; i++) widget.itemBuilder(context, i, _close),
+                if (widget.contentBuilder != null) widget.contentBuilder!(context, _close),
+                for (var i = 0; i < widget.itemCount; i++) widget.itemBuilder!(context, i, _close),
                 if (widget.footer != null) ...[
                   if (widget.itemCount > 0)
                     Container(height: 1, margin: const EdgeInsets.symmetric(vertical: 4), color: DashColors.glassBorder),
@@ -717,6 +722,201 @@ class _AddOptionRowState extends State<_AddOptionRow> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Date field: field-look trigger opening a compact month calendar under it.
+/// Value is the vault's `yyyy-MM-dd` string (empty/invalid → unset).
+class DashDateField extends StatefulWidget {
+  const DashDateField({super.key, required this.value, required this.onChanged, this.hint = 'Pick a date…'});
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  final String hint;
+
+  @override
+  State<DashDateField> createState() => _DashDateFieldState();
+}
+
+class _DashDateFieldState extends State<DashDateField> {
+  DateTime? get _date => widget.value == null ? null : DateTime.tryParse(widget.value!.trim());
+
+  static String _fmt(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final date = _date;
+    return DashMenuAnchor(
+      menuWidth: 232,
+      triggerBuilder: (context, open, hovering) => AnimatedContainer(
+        duration: DashMotion.hover,
+        height: DashSize.control,
+        padding: const EdgeInsets.symmetric(horizontal: DashSpace.x2),
+        decoration: BoxDecoration(
+          color: DashColors.bg1,
+          borderRadius: DashRadius.br,
+          border: Border.all(
+              color: open
+                  ? DashColors.accent
+                  : hovering
+                      ? Colors.white.withValues(alpha: 0.14)
+                      : DashColors.glassBorder),
+        ),
+        child: Row(
+          children: [
+            DashIcon('calendar_today', size: 14, color: open ? DashColors.accent : DashColors.text2),
+            const SizedBox(width: DashSpace.x2),
+            Expanded(
+              child: date == null
+                  ? Text(widget.hint, style: _fieldStyle.copyWith(color: DashColors.text2))
+                  : Text(_fmt(date), style: _fieldStyle),
+            ),
+            if (date != null && hovering)
+              DashIconBtn('close', size: 12, onTap: () => widget.onChanged(null)),
+          ],
+        ),
+      ),
+      contentBuilder: (context, close) => _CalendarPanel(
+        selected: date,
+        onPick: (d) {
+          widget.onChanged(_fmt(d));
+          close();
+        },
+        onClear: () {
+          widget.onChanged(null);
+          close();
+        },
+      ),
+    );
+  }
+}
+
+class _CalendarPanel extends StatefulWidget {
+  const _CalendarPanel({required this.selected, required this.onPick, required this.onClear});
+  final DateTime? selected;
+  final ValueChanged<DateTime> onPick;
+  final VoidCallback onClear;
+
+  @override
+  State<_CalendarPanel> createState() => _CalendarPanelState();
+}
+
+class _CalendarPanelState extends State<_CalendarPanel> {
+  late DateTime _month;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.selected ?? DateTime.now();
+    _month = DateTime(s.year, s.month);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final sel = widget.selected;
+    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
+    final cells = <DateTime?>[
+      for (var i = 1; i < _month.weekday; i++) null,
+      for (var d = 1; d <= daysInMonth; d++) DateTime(_month.year, _month.month, d),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.all(DashSpace.x1),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text('${_monthNames[_month.month - 1]} ${_month.year}',
+                  style: DashType.label.copyWith(color: DashColors.text0)),
+              const Spacer(),
+              DashIconBtn('chevron_left',
+                  size: 14, onTap: () => setState(() => _month = DateTime(_month.year, _month.month - 1))),
+              DashIconBtn('chevron_right',
+                  size: 14, onTap: () => setState(() => _month = DateTime(_month.year, _month.month + 1))),
+            ],
+          ),
+          const SizedBox(height: DashSpace.x1),
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (final wd in const ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+                Center(child: Text(wd, style: DashType.small.copyWith(color: DashColors.text2, fontSize: 10))),
+              for (final day in cells)
+                day == null
+                    ? const SizedBox.shrink()
+                    : _CalDay(
+                        day: day,
+                        selected: sel != null && day.year == sel.year && day.month == sel.month && day.day == sel.day,
+                        today: day == today,
+                        onTap: () => widget.onPick(day),
+                      ),
+            ],
+          ),
+          const SizedBox(height: DashSpace.x1),
+          Row(
+            children: [
+              DashButton('Today', height: DashSize.controlCompact, onTap: () => widget.onPick(today)),
+              const Spacer(),
+              DashButton('Clear', height: DashSize.controlCompact, onTap: widget.onClear),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+}
+
+class _CalDay extends StatefulWidget {
+  const _CalDay({required this.day, required this.selected, required this.today, required this.onTap});
+  final DateTime day;
+  final bool selected, today;
+  final VoidCallback onTap;
+
+  @override
+  State<_CalDay> createState() => _CalDayState();
+}
+
+class _CalDayState extends State<_CalDay> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: DashMotion.hover,
+          margin: const EdgeInsets.all(1),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? DashColors.accentDim
+                : _hovering
+                    ? DashColors.hover
+                    : Colors.transparent,
+            borderRadius: DashRadius.br,
+            border: widget.today ? Border.all(color: DashColors.accent.withValues(alpha: 0.5)) : null,
+          ),
+          child: Text('${widget.day.day}',
+              style: DashType.small.copyWith(
+                  color: widget.selected ? DashColors.accent : DashColors.text1, fontSize: 10.5, height: 1)),
+        ),
       ),
     );
   }
