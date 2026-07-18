@@ -14,12 +14,26 @@ import '../../widgets/dash_icon.dart';
 /// hover-revealed "Add cover" affordance when it isn't. Picked images are
 /// copied into the vault's Attachments/ so the vault stays self-contained;
 /// [onChanged] receives the vault-relative path (or null on remove).
+const _kCoverH = 200.0;
+
 class NoteCoverHeader extends ConsumerStatefulWidget {
-  const NoteCoverHeader({super.key, required this.cover, required this.onChanged, required this.title});
+  const NoteCoverHeader({
+    super.key,
+    required this.cover,
+    required this.onChanged,
+    required this.title,
+    this.coverY = 0.5,
+    this.onReposition,
+  });
 
   final String? cover;
   final ValueChanged<String?> onChanged;
   final Widget title;
+
+  /// Vertical focal point of the cover image, 0 (top) → 1 (bottom). Drag the
+  /// banner to change it; persisted by the owner via [onReposition].
+  final double coverY;
+  final ValueChanged<double>? onReposition;
 
   @override
   ConsumerState<NoteCoverHeader> createState() => _NoteCoverHeaderState();
@@ -28,6 +42,15 @@ class NoteCoverHeader extends ConsumerStatefulWidget {
 class _NoteCoverHeaderState extends ConsumerState<NoteCoverHeader> {
   bool _hoverBanner = false;
   bool _hoverTitle = false;
+  double? _dragY; // live focal point while dragging (overrides widget.coverY)
+
+  double get _y => (_dragY ?? widget.coverY).clamp(0.0, 1.0);
+
+  @override
+  void didUpdateWidget(NoteCoverHeader old) {
+    super.didUpdateWidget(old);
+    if (old.cover != widget.cover) _dragY = null; // new image → reset focus
+  }
 
   Future<void> _pick() async {
     final res = await FilePicker.pickFiles(type: FileType.image, allowMultiple: false);
@@ -73,26 +96,37 @@ class _NoteCoverHeaderState extends ConsumerState<NoteCoverHeader> {
     );
   }
 
+  void _drag(DragUpdateDetails d) {
+    if (widget.onReposition == null) return;
+    setState(() => _dragY = (_y - d.delta.dy / _kCoverH).clamp(0.0, 1.0));
+  }
+
   Widget _banner(String root) {
+    final repositionable = widget.onReposition != null;
     return MouseRegion(
       onEnter: (_) => setState(() => _hoverBanner = true),
       onExit: (_) => setState(() => _hoverBanner = false),
-      child: Container(
-        height: 200,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(borderRadius: DashRadius.br),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.file(
-              File(p.join(root, widget.cover!)),
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                color: DashColors.bg1,
-                alignment: Alignment.center,
-                child: Text('Missing cover: ${widget.cover}', style: DashType.small.copyWith(color: DashColors.text2)),
+      cursor: repositionable ? SystemMouseCursors.resizeUpDown : MouseCursor.defer,
+      child: GestureDetector(
+        onVerticalDragUpdate: repositionable ? _drag : null,
+        onVerticalDragEnd: repositionable ? (_) => widget.onReposition!(_y) : null,
+        child: Container(
+          height: _kCoverH,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(borderRadius: DashRadius.br),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(
+                File(p.join(root, widget.cover!)),
+                fit: BoxFit.cover,
+                alignment: Alignment(0, _y * 2 - 1),
+                errorBuilder: (_, _, _) => Container(
+                  color: DashColors.bg1,
+                  alignment: Alignment.center,
+                  child: Text('Missing cover: ${widget.cover}', style: DashType.small.copyWith(color: DashColors.text2)),
+                ),
               ),
-            ),
             // Fades fully into the page background over the lower third, so the
             // body appears to start right where the fade ends.
             const DecoratedBox(
@@ -121,7 +155,8 @@ class _NoteCoverHeaderState extends ConsumerState<NoteCoverHeader> {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

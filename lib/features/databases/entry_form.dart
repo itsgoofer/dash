@@ -10,6 +10,7 @@ import '../../widgets/dash_chip.dart';
 import '../../widgets/dash_controls.dart';
 import '../../widgets/properties_sidebar.dart';
 import '../editor/editor.dart';
+import '../editor/note_cover.dart';
 import 'db_widgets.dart';
 import 'schema_ops.dart';
 
@@ -75,7 +76,13 @@ class EntryForm extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  header,
+                  NoteCoverHeader(
+                    cover: value.fields['cover'] as String?,
+                    coverY: (value.fields['coverY'] as num?)?.toDouble() ?? 0.5,
+                    onChanged: (v) => notifier.setField('cover', v),
+                    onReposition: (y) => notifier.setField('coverY', y),
+                    title: header,
+                  ),
                   ?banner,
                   const SizedBox(height: DashSpace.x4),
                   Expanded(
@@ -186,6 +193,7 @@ class _FieldControlState extends State<_FieldControl> {
           },
         );
       case FieldType.date:
+      case FieldType.dynamicDate:
         control = DashDateField(value: widget.value?.toString(), onChanged: widget.onChanged);
       case FieldType.number:
         control = DashTextField(

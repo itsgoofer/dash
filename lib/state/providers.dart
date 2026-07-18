@@ -127,7 +127,7 @@ final indexProvider = AsyncNotifierProvider<IndexNotifier, VaultIndex>(IndexNoti
 /// Metric keys in serialization order (after type/date). Metrics are 1–10 and
 /// omitted from frontmatter when unset.
 const journalMetrics = ['energy', 'rating', 'productivity', 'exercise', 'gaming'];
-const _journalKeyOrder = ['type', 'date', 'cover', ...journalMetrics];
+const _journalKeyOrder = ['type', 'date', 'cover', 'coverY', ...journalMetrics];
 final _dateFmt = DateFormat('yyyy-MM-dd');
 
 DateTime _today() {
@@ -161,6 +161,7 @@ class JournalDoc {
     required this.metrics,
     required this.exists,
     this.cover,
+    this.coverY,
     this.dirty = false,
     this.changedOnDisk = false,
   });
@@ -170,19 +171,27 @@ class JournalDoc {
   final Map<String, int> metrics;
   final bool exists;
   final String? cover; // vault-relative cover image path (frontmatter `cover:`)
+  final double? coverY; // cover vertical focal point 0..1 (frontmatter `coverY:`)
   final bool dirty;
   final bool changedOnDisk;
 
   static const Object _unset = Object();
 
   JournalDoc copyWith(
-          {String? body, Map<String, int>? metrics, bool? exists, bool? dirty, bool? changedOnDisk, Object? cover = _unset}) =>
+          {String? body,
+          Map<String, int>? metrics,
+          bool? exists,
+          bool? dirty,
+          bool? changedOnDisk,
+          Object? cover = _unset,
+          Object? coverY = _unset}) =>
       JournalDoc(
         date: date,
         body: body ?? this.body,
         metrics: metrics ?? this.metrics,
         exists: exists ?? this.exists,
         cover: identical(cover, _unset) ? this.cover : cover as String?,
+        coverY: identical(coverY, _unset) ? this.coverY : coverY as double?,
         dirty: dirty ?? this.dirty,
         changedOnDisk: changedOnDisk ?? this.changedOnDisk,
       );
@@ -235,8 +244,14 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
     if (!await file.exists()) return JournalDoc(date: date, body: '', metrics: const {}, exists: false);
     final parsed = Frontmatter.parse(await file.readAsString());
     final cover = parsed.data['cover'];
+    final coverY = parsed.data['coverY'];
     return JournalDoc(
-        date: date, body: parsed.body, metrics: _metricsFrom(parsed.data), exists: true, cover: cover is String ? cover : null);
+        date: date,
+        body: parsed.body,
+        metrics: _metricsFrom(parsed.data),
+        exists: true,
+        cover: cover is String ? cover : null,
+        coverY: coverY is num ? coverY.toDouble() : null);
   }
 
   Map<String, int> _metricsFrom(Map<String, dynamic> data) => {
@@ -254,7 +269,14 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
   void setCover(String? path) {
     final d = state.value;
     if (d == null || d.cover == path) return;
-    state = AsyncData(d.copyWith(cover: path, dirty: true));
+    state = AsyncData(d.copyWith(cover: path, coverY: path == null ? null : d.coverY, dirty: true));
+    _schedule();
+  }
+
+  void setCoverY(double y) {
+    final d = state.value;
+    if (d == null || d.coverY == y) return;
+    state = AsyncData(d.copyWith(coverY: y, dirty: true));
     _schedule();
   }
 
@@ -285,7 +307,7 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
     await _persist(d);
     _indexHash = _index.hashOf(_rel); // our own write — don't treat as external
     final cur = state.value;
-    if (cur != null && cur.body == d.body && cur.cover == d.cover && _mapEq.equals(cur.metrics, d.metrics)) {
+    if (cur != null && cur.body == d.body && cur.cover == d.cover && cur.coverY == d.coverY && _mapEq.equals(cur.metrics, d.metrics)) {
       state = AsyncData(cur.copyWith(dirty: false, exists: true));
     }
   }
@@ -293,6 +315,7 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
   String _serialize(JournalDoc d) {
     final data = <String, dynamic>{'type': 'journal', 'date': _dateFmt.format(d.date)};
     if (d.cover != null) data['cover'] = d.cover;
+    if (d.coverY != null) data['coverY'] = d.coverY;
     for (final k in journalMetrics) {
       if (d.metrics[k] != null) data[k] = d.metrics[k];
     }
@@ -303,7 +326,7 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
     final d = state.value;
     if (d == null) return;
     final incoming = await _readFromDisk();
-    if (incoming.body == d.body && incoming.cover == d.cover && _mapEq.equals(incoming.metrics, d.metrics)) {
+    if (incoming.body == d.body && incoming.cover == d.cover && incoming.coverY == d.coverY && _mapEq.equals(incoming.metrics, d.metrics)) {
       return; // no real change
     }
     if (d.dirty) {
@@ -541,7 +564,14 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
       return DbEntryDoc(
         slug: key.slug,
         path: null,
-        fields: {for (final f in _schema.fields) f.name: f.type == FieldType.checkbox ? false : null},
+        fields: {
+          for (final f in _schema.fields)
+            f.name: switch (f.type) {
+              FieldType.checkbox => false,
+              FieldType.dynamicDate => _dateFmt.format(_today()), // auto-stamp today on creation
+              _ => null,
+            },
+        },
         body: '',
         exists: false,
       );
@@ -603,7 +633,10 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
   /// A blank new entry stays unwritten so navigation doesn't litter the vault.
   bool _hasContent(DbEntryDoc d) {
     if (((d.fields['title'] as String?)?.trim().isNotEmpty ?? false) || d.body.trim().isNotEmpty) return true;
-    return d.fields.entries.any((e) => e.key != 'title' && e.value != null && e.value != false && e.value != '');
+    // Auto-stamped dynamic-date fields don't count as user intent — otherwise
+    // merely opening "New entry" would create an Untitled note on navigation.
+    final auto = {for (final f in _schema.fields) if (f.type == FieldType.dynamicDate) f.name};
+    return d.fields.entries.any((e) => e.key != 'title' && !auto.contains(e.key) && e.value != null && e.value != false && e.value != '');
   }
 
   /// Writes to disk (renaming on title change) + reflects in the index.

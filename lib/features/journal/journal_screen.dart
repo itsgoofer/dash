@@ -27,7 +27,9 @@ class JournalScreen extends ConsumerWidget {
       children: [
         NoteCoverHeader(
           cover: doc.value?.cover,
+          coverY: doc.value?.coverY ?? 0.5,
           onChanged: ref.read(journalNoteProvider(date).notifier).setCover,
+          onReposition: ref.read(journalNoteProvider(date).notifier).setCoverY,
           title: Row(
             children: [
               Text(_titleFmt.format(date), style: DashType.display),

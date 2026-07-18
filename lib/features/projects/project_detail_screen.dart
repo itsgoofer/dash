@@ -37,7 +37,9 @@ class ProjectDetailScreen extends ConsumerWidget {
 
     final header = NoteCoverHeader(
       cover: coverVal is String ? coverVal : null,
+      coverY: (doc.value?.fields['coverY'] as num?)?.toDouble() ?? 0.5,
       onChanged: (v) => notifier.setField('cover', v),
+      onReposition: (y) => notifier.setField('coverY', y),
       title: Row(
         children: [
           BackNavButton(onTap: () => ref.read(projectsNavProvider.notifier).showList()),

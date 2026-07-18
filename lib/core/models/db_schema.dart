@@ -9,6 +9,7 @@ enum FieldType {
   text,
   number,
   date,
+  dynamicDate,
   checkbox,
   select,
   multiselect,

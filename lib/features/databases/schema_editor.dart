@@ -105,6 +105,7 @@ class _SchemaEditorDialogState extends ConsumerState<_SchemaEditorDialog> {
                   onTypeChanged: (t) => setState(() => _fields[i] = _fields[i].copyWith(type: t)),
                   onNameChanged: (v) => _fields[i] = _fields[i].copyWith(name: v),
                   onOptionsChanged: (o) => setState(() => _fields[i] = _fields[i].copyWith(options: o)),
+                  onRequiredChanged: (r) => setState(() => _fields[i] = _fields[i].copyWith(required: r)),
                   onRemove: _fields[i].name == 'title' ? null : () => _removeField(i),
                 ),
               const SizedBox(height: DashSpace.x2),
@@ -121,11 +122,22 @@ class _SchemaEditorDialogState extends ConsumerState<_SchemaEditorDialog> {
   }
 }
 
+String _fieldTypeLabel(FieldType t) => switch (t) {
+      FieldType.text => 'Text',
+      FieldType.number => 'Number',
+      FieldType.date => 'Date',
+      FieldType.dynamicDate => 'Date (auto-today)',
+      FieldType.checkbox => 'Boolean',
+      FieldType.select => 'Select',
+      FieldType.multiselect => 'Multi-select',
+      FieldType.url => 'URL',
+    };
+
 extension on DbField {
-  DbField copyWith({String? name, FieldType? type, List<String>? options}) => DbField(
+  DbField copyWith({String? name, FieldType? type, List<String>? options, bool? required}) => DbField(
         name: name ?? this.name,
         type: type ?? this.type,
-        required: this.required,
+        required: required ?? this.required,
         min: min,
         max: max,
         options: options ?? this.options,
@@ -139,6 +151,7 @@ class _FieldRow extends StatelessWidget {
     required this.onNameChanged,
     required this.onTypeChanged,
     required this.onOptionsChanged,
+    required this.onRequiredChanged,
     this.onRemove,
   });
 
@@ -147,14 +160,21 @@ class _FieldRow extends StatelessWidget {
   final ValueChanged<String> onNameChanged;
   final ValueChanged<FieldType> onTypeChanged;
   final ValueChanged<List<String>> onOptionsChanged;
+  final ValueChanged<bool> onRequiredChanged;
   final VoidCallback? onRemove;
 
   bool get _hasOptions => field.type == FieldType.select || field.type == FieldType.multiselect;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: DashSpace.x2),
+    return Container(
+      margin: const EdgeInsets.only(bottom: DashSpace.x2),
+      padding: const EdgeInsets.all(DashSpace.x2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        borderRadius: DashRadius.br,
+        border: Border.all(color: DashColors.glassBorder),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -168,19 +188,36 @@ class _FieldRow extends StatelessWidget {
               Expanded(
                 child: DashDropdown<FieldType>(
                   value: field.type,
-                  options: [for (final t in FieldType.values) DashOption(t, t.name)],
+                  options: [for (final t in FieldType.values) DashOption(t, _fieldTypeLabel(t))],
                   onChanged: onTypeChanged,
                 ),
               ),
-              if (onRemove != null) ...[
-                const SizedBox(width: DashSpace.x1),
-                DashIconBtn('close', onTap: onRemove),
-              ],
+              const SizedBox(width: DashSpace.x2),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => onRequiredChanged(!field.required),
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DashCheckbox(value: field.required, onChanged: onRequiredChanged),
+                      const SizedBox(width: DashSpace.x1),
+                      Text('Required', style: DashType.small),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: DashSpace.x1),
+              SizedBox(
+                width: DashSize.iconButton,
+                child: onRemove == null ? null : DashIconBtn('close', onTap: onRemove),
+              ),
             ],
           ),
           if (_hasOptions)
             Padding(
-              padding: const EdgeInsets.only(top: DashSpace.x1, left: DashSpace.x1),
+              padding: const EdgeInsets.only(top: DashSpace.x2),
               child: _OptionsEditor(options: field.options ?? const [], onChanged: onOptionsChanged),
             ),
         ],

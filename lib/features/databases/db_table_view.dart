@@ -524,6 +524,7 @@ class _EntryRowState extends State<_EntryRow> {
           ),
         );
       case FieldType.date:
+      case FieldType.dynamicDate:
         return Focus(
           autofocus: true,
           onKeyEvent: _onEsc,
@@ -565,7 +566,7 @@ class _EntryRowState extends State<_EntryRow> {
             for (final v in (value as List)) DashChip(v.toString(), color: DashChip.optionColor(v.toString()))
           ],
         ),
-      FieldType.date => Text(value.toString(), style: DashType.small),
+      FieldType.date || FieldType.dynamicDate => Text(value.toString(), style: DashType.small),
       FieldType.url =>
         Text(value.toString(), style: DashType.small.copyWith(color: DashColors.accent), overflow: TextOverflow.ellipsis),
       _ => Text(value.toString(),

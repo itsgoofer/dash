@@ -43,13 +43,13 @@ Verify: `flutter analyze` clean ✓, `flutter build macos --debug` ✓. Interact
 
 ## Phase 4 — Schema/props & covers (6, 7) [Sonnet, Opus for cover drag]
 
-- [ ] Rename checkbox→boolean: label-only change in `schema_editor.dart` dropdown + `entry_form.dart` display; KEEP enum value `checkbox` in `db_schema.dart` (no vault migration).
-- [ ] Dynamic date: add flag (or `FieldType.dynamicDate`) on date fields; on entry creation `DbEntryNotifier` fills today (yyyy-MM-dd, matches DashDateField `dash_controls.dart:734-796`).
-- [ ] Streamline schema editor UI (`lib/features/databases/schema_editor.dart`): compact rows, adaptive layout, DashControls only.
-- [ ] DB entry covers: wire `NoteCoverHeader` (`note_cover.dart:17`) into `entry_form.dart` (currently only journal + project screens use it).
-- [ ] Cover reposition: add `coverY` frontmatter value; vertical drag in `note_cover.dart` `_banner` mapping to `Alignment/FractionalOffset`. Gotcha: clamp 0-1, persist through the Phase-1 write path.
+- [x] Rename checkbox→boolean: label-only via `_fieldTypeLabel` in `schema_editor.dart` (dropdown shows "Boolean"); enum value `checkbox` unchanged (no vault migration).
+- [x] Dynamic date: new `FieldType.dynamicDate` (renders/edits exactly like `date`); `DbEntryNotifier.build` prefills today (yyyy-MM-dd) on new entries, and `_hasContent` ignores it so opening "New entry" doesn't create a blank note.
+- [x] Streamlined schema editor: rows grouped in bordered containers, added a Required toggle, aligned controls; DashControls only.
+- [x] DB entry covers: `NoteCoverHeader` wired into `entry_form.dart` (cover + coverY via `fields['cover']`/`fields['coverY']`).
+- [x] Cover reposition: `NoteCoverHeader` gains `coverY` + `onReposition`; vertical drag maps to `Alignment(0, coverY*2-1)`, clamped 0–1, resize cursor. Persisted for journal (new `JournalDoc.coverY`), project, and db entries via the Phase-1 write path.
 
-Verify: shot — new entry with dynamic date pre-filled, boolean label, DB entry cover dragged and persisted after reload.
+Verify: `flutter analyze` clean ✓; build pending. Visual/drag check on Goofer's machine.
 
 ## Phase 5 — Projects module (8, 9, 10) [Sonnet, Opus for templating]
 
