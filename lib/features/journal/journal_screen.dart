@@ -6,6 +6,7 @@ import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
 import '../editor/editor.dart';
+import '../editor/note_cover.dart';
 import 'journal_calendar.dart';
 import 'journal_properties.dart';
 
@@ -23,18 +24,22 @@ class JournalScreen extends ConsumerWidget {
     final main = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Text(_titleFmt.format(date), style: DashType.display),
-            if (!isToday) ...[
-              const SizedBox(width: DashSpace.x3),
-              _NavButton(
-                icon: 'calendar_today',
-                tooltip: 'Today',
-                onTap: ref.read(selectedJournalDateProvider.notifier).goToday,
-              ),
+        NoteCoverHeader(
+          cover: doc.value?.cover,
+          onChanged: ref.read(journalNoteProvider(date).notifier).setCover,
+          title: Row(
+            children: [
+              Text(_titleFmt.format(date), style: DashType.display),
+              if (!isToday) ...[
+                const SizedBox(width: DashSpace.x3),
+                _NavButton(
+                  icon: 'calendar_today',
+                  tooltip: 'Today',
+                  onTap: ref.read(selectedJournalDateProvider.notifier).goToday,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         if (doc.value?.changedOnDisk ?? false)
           _ChangedBanner(onReload: () => ref.read(journalNoteProvider(date).notifier).reload()),

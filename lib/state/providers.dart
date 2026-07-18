@@ -113,7 +113,7 @@ final indexProvider = AsyncNotifierProvider<IndexNotifier, VaultIndex>(IndexNoti
 /// Metric keys in serialization order (after type/date). Metrics are 1–10 and
 /// omitted from frontmatter when unset.
 const journalMetrics = ['energy', 'rating', 'productivity', 'exercise', 'gaming'];
-const _journalKeyOrder = ['type', 'date', ...journalMetrics];
+const _journalKeyOrder = ['type', 'date', 'cover', ...journalMetrics];
 final _dateFmt = DateFormat('yyyy-MM-dd');
 
 DateTime _today() {
@@ -146,6 +146,7 @@ class JournalDoc {
     required this.body,
     required this.metrics,
     required this.exists,
+    this.cover,
     this.dirty = false,
     this.changedOnDisk = false,
   });
@@ -154,15 +155,20 @@ class JournalDoc {
   final String body;
   final Map<String, int> metrics;
   final bool exists;
+  final String? cover; // vault-relative cover image path (frontmatter `cover:`)
   final bool dirty;
   final bool changedOnDisk;
 
-  JournalDoc copyWith({String? body, Map<String, int>? metrics, bool? exists, bool? dirty, bool? changedOnDisk}) =>
+  static const Object _unset = Object();
+
+  JournalDoc copyWith(
+          {String? body, Map<String, int>? metrics, bool? exists, bool? dirty, bool? changedOnDisk, Object? cover = _unset}) =>
       JournalDoc(
         date: date,
         body: body ?? this.body,
         metrics: metrics ?? this.metrics,
         exists: exists ?? this.exists,
+        cover: identical(cover, _unset) ? this.cover : cover as String?,
         dirty: dirty ?? this.dirty,
         changedOnDisk: changedOnDisk ?? this.changedOnDisk,
       );
@@ -204,7 +210,9 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
     final file = File(_abs);
     if (!await file.exists()) return JournalDoc(date: date, body: '', metrics: const {}, exists: false);
     final parsed = Frontmatter.parse(await file.readAsString());
-    return JournalDoc(date: date, body: parsed.body, metrics: _metricsFrom(parsed.data), exists: true);
+    final cover = parsed.data['cover'];
+    return JournalDoc(
+        date: date, body: parsed.body, metrics: _metricsFrom(parsed.data), exists: true, cover: cover is String ? cover : null);
   }
 
   Map<String, int> _metricsFrom(Map<String, dynamic> data) => {
@@ -216,6 +224,13 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
     final d = state.value;
     if (d == null || d.body == body) return;
     state = AsyncData(d.copyWith(body: body, dirty: true));
+    _schedule();
+  }
+
+  void setCover(String? path) {
+    final d = state.value;
+    if (d == null || d.cover == path) return;
+    state = AsyncData(d.copyWith(cover: path, dirty: true));
     _schedule();
   }
 
@@ -238,13 +253,14 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
     final content = _serialize(d);
     await ref.read(vaultFsProvider).writeNote(_abs, content);
     final cur = state.value;
-    if (cur != null && cur.body == d.body && _mapEq.equals(cur.metrics, d.metrics)) {
+    if (cur != null && cur.body == d.body && cur.cover == d.cover && _mapEq.equals(cur.metrics, d.metrics)) {
       state = AsyncData(cur.copyWith(dirty: false, exists: true));
     }
   }
 
   String _serialize(JournalDoc d) {
     final data = <String, dynamic>{'type': 'journal', 'date': _dateFmt.format(d.date)};
+    if (d.cover != null) data['cover'] = d.cover;
     for (final k in journalMetrics) {
       if (d.metrics[k] != null) data[k] = d.metrics[k];
     }
@@ -255,7 +271,9 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
     final d = state.value;
     if (d == null) return;
     final incoming = await _readFromDisk();
-    if (incoming.body == d.body && _mapEq.equals(incoming.metrics, d.metrics)) return; // no real change
+    if (incoming.body == d.body && incoming.cover == d.cover && _mapEq.equals(incoming.metrics, d.metrics)) {
+      return; // no real change
+    }
     if (d.dirty) {
       state = AsyncData(d.copyWith(changedOnDisk: true));
     } else {

@@ -93,6 +93,50 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
     if (mounted) setState(() {});
   }
 
+  void _replaceRange(int start, int end, String repl, TextSelection sel) {
+    final newText = _controller.text.replaceRange(start, end, repl);
+    _controller.value = TextEditingValue(text: newText, selection: sel);
+    widget.onChanged(newText);
+    if (mounted) setState(() {});
+  }
+
+  /// ⌘B/I/U toggle: unwraps when the selection contains or is surrounded by
+  /// the markers, wraps (and keeps the content selected) otherwise.
+  void _toggleWrap(String l, String r) {
+    final text = _controller.text;
+    final sel = _controller.selection;
+    if (!sel.isValid) return;
+    final start = sel.start, end = sel.end;
+    final inner = text.substring(start, end);
+    if (inner.length >= l.length + r.length && inner.startsWith(l) && inner.endsWith(r)) {
+      final un = inner.substring(l.length, inner.length - r.length);
+      return _replaceRange(start, end, un, TextSelection(baseOffset: start, extentOffset: start + un.length));
+    }
+    if (start >= l.length && text.startsWith(r, end) && text.substring(start - l.length, start) == l) {
+      return _replaceRange(start - l.length, end + r.length, inner,
+          TextSelection(baseOffset: start - l.length, extentOffset: start - l.length + inner.length));
+    }
+    _replaceRange(start, end, '$l$inner$r',
+        TextSelection(baseOffset: start + l.length, extentOffset: start + l.length + inner.length));
+  }
+
+  /// ⌘K: selection → `[selection](‸)`, empty → `[‸]()`, existing link → label.
+  void _toggleLink() {
+    final text = _controller.text;
+    final sel = _controller.selection;
+    if (!sel.isValid) return;
+    final start = sel.start, end = sel.end;
+    final inner = text.substring(start, end);
+    final m = RegExp(r'^\[([^\]]*)\]\(([^)]*)\)$').firstMatch(inner);
+    if (m != null) {
+      final label = m.group(1)!;
+      return _replaceRange(start, end, label, TextSelection(baseOffset: start, extentOffset: start + label.length));
+    }
+    inner.isEmpty
+        ? _replaceRange(start, end, '[]()', TextSelection.collapsed(offset: start + 1))
+        : _replaceRange(start, end, '[$inner]()', TextSelection.collapsed(offset: start + inner.length + 3));
+  }
+
   void _onReadChanged(String body) {
     _controller.value = TextEditingValue(text: body, selection: _controller.selection);
     widget.onChanged(body);
@@ -310,6 +354,24 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
       }
       if (k == LogicalKeyboardKey.escape) {
         _closeSlash();
+        return KeyEventResult.handled;
+      }
+    }
+    if (e is KeyDownEvent && meta && !_readNow) {
+      if (k == LogicalKeyboardKey.keyB) {
+        _toggleWrap('**', '**');
+        return KeyEventResult.handled;
+      }
+      if (k == LogicalKeyboardKey.keyI) {
+        _toggleWrap('*', '*');
+        return KeyEventResult.handled;
+      }
+      if (k == LogicalKeyboardKey.keyU) {
+        _toggleWrap('<u>', '</u>');
+        return KeyEventResult.handled;
+      }
+      if (k == LogicalKeyboardKey.keyK) {
+        _toggleLink();
         return KeyEventResult.handled;
       }
     }

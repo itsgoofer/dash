@@ -19,7 +19,8 @@ class MarkdownEditingController extends TextEditingController {
     r'|(\[[^\]]*\]\([^)]*\))' // 2 link
     r'|(\*\*[^*]+\*\*)' // 3 bold
     r'|(~~[^~]+~~)' // 4 strike
-    r'|(\*[^*\n]+\*)', // 5 italic
+    r'|(<u>[^<]+</u>)' // 5 underline
+    r'|(\*[^*\n]+\*)', // 6 italic
   );
 
   @override
@@ -110,6 +111,10 @@ class MarkdownEditingController extends TextEditingController {
         _wrap(s, 2, base.copyWith(fontWeight: FontWeight.w700, color: DashColors.text0), marker, out);
       } else if (m.group(4) != null) {
         _wrap(s, 2, base.copyWith(decoration: TextDecoration.lineThrough, color: DashColors.text1), marker, out);
+      } else if (m.group(5) != null) {
+        out.add(TextSpan(text: '<u>', style: marker));
+        out.add(TextSpan(text: s.substring(3, s.length - 4), style: base.copyWith(decoration: TextDecoration.underline, color: DashColors.text0)));
+        out.add(TextSpan(text: '</u>', style: marker));
       } else {
         _wrap(s, 1, base.copyWith(fontStyle: FontStyle.italic), marker, out);
       }
