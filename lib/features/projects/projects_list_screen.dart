@@ -7,7 +7,7 @@ import '../../core/models/note.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_chip.dart';
-import '../../widgets/dash_icon.dart';
+import '../../widgets/dash_controls.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/glass_panel.dart';
 import 'project_widgets.dart';
@@ -42,15 +42,19 @@ class ProjectsListScreen extends ConsumerWidget {
         backgroundColor: DashColors.bg1,
         shape: RoundedRectangleBorder(borderRadius: DashRadius.br, side: BorderSide(color: DashColors.glassBorder)),
         title: const Text('New project', style: DashType.heading),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Project title'),
-          onSubmitted: (v) => Navigator.pop(context, v),
+        content: SizedBox(
+          width: 320,
+          child: DashTextField(
+            controller: controller,
+            autofocus: true,
+            hint: 'Project title',
+            onSubmitted: (v) => Navigator.pop(context, v),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Create')),
+          DashButton('Cancel', onTap: () => Navigator.pop(context)),
+          DashButton('Create',
+              kind: DashButtonKind.primary, onTap: () => Navigator.pop(context, controller.text)),
         ],
       ),
     );
@@ -67,10 +71,11 @@ class ProjectsListScreen extends ConsumerWidget {
           children: [
             Text('Projects', style: DashType.display),
             const Spacer(),
-            FilledButton.icon(
-              onPressed: () => _createProject(context, ref),
-              icon: const DashIcon('add', size: 16, color: DashColors.bg0),
-              label: const Text('New project'),
+            DashButton(
+              'New project',
+              icon: 'add',
+              kind: DashButtonKind.primary,
+              onTap: () => _createProject(context, ref),
             ),
           ],
         ),

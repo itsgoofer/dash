@@ -237,9 +237,10 @@ ThemeData buildDashTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
+      isDense: true,
       fillColor: DashColors.bg1,
-      hintStyle: DashType.body.copyWith(color: DashColors.text2),
-      contentPadding: const EdgeInsets.symmetric(horizontal: DashSpace.x2, vertical: DashSpace.x2),
+      hintStyle: DashType.body.copyWith(fontSize: 13, height: 1.2, color: DashColors.text2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: DashSpace.x2, vertical: 7),
       border: OutlineInputBorder(
         borderRadius: DashRadius.br,
         borderSide: BorderSide(color: DashColors.glassBorder),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tasks.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
+import '../../widgets/dash_controls.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/glass_panel.dart';
 import '../databases/db_widgets.dart';
@@ -163,12 +164,8 @@ class _TaskRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(value: item.checked, onChanged: (_) => onToggle(), activeColor: DashColors.accent),
-            ),
-            const SizedBox(width: DashSpace.x1),
+            DashCheckbox(value: item.checked, onChanged: (_) => onToggle()),
+            const SizedBox(width: DashSpace.x2),
             Expanded(
               child: Text(
                 item.text,
@@ -235,24 +232,23 @@ class _StatusDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      initialValue: value,
-      onSelected: onChanged,
-      color: DashColors.bg1,
-      shape: RoundedRectangleBorder(borderRadius: DashRadius.br, side: BorderSide(color: DashColors.glassBorder)),
-      itemBuilder: (context) => [
-        for (final o in options) PopupMenuItem(value: o, child: Text(o, style: DashType.label)),
-      ],
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _StatusChip(value),
-            const SizedBox(width: 2),
-            const DashIcon('expand_more', size: 16, color: DashColors.text2),
-          ],
-        ),
+    return DashDropdown<String>(
+      value: value,
+      options: [for (final o in options) DashOption(o, o, chipColor: statusColor(o))],
+      onChanged: onChanged,
+      menuWidth: 140,
+      triggerBuilder: (context, open) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StatusChip(value),
+          const SizedBox(width: 2),
+          AnimatedRotation(
+            turns: open ? 0.5 : 0,
+            duration: DashMotion.duration,
+            curve: DashMotion.curve,
+            child: DashIcon('expand_more', size: 16, color: open ? DashColors.accent : DashColors.text2),
+          ),
+        ],
       ),
     );
   }

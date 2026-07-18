@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/dash_theme.dart';
+import 'dash_controls.dart';
 
 /// Destructive-confirm dialog (entry/database deletion etc). Returns true if
 /// confirmed.
@@ -19,14 +20,11 @@ Future<bool> showConfirmDialog(
       title: Text(title, style: DashType.heading),
       content: Text(message, style: DashType.body.copyWith(color: DashColors.text1)),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: destructive ? DashColors.danger : DashColors.accent,
-            foregroundColor: DashColors.bg0,
-          ),
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(confirmLabel),
+        DashButton('Cancel', onTap: () => Navigator.pop(context, false)),
+        DashButton(
+          confirmLabel,
+          kind: destructive ? DashButtonKind.danger : DashButtonKind.primary,
+          onTap: () => Navigator.pop(context, true),
         ),
       ],
     ),
