@@ -8,6 +8,7 @@ import '../../widgets/dash_icon.dart';
 import '../../widgets/glass_panel.dart';
 import '../databases/db_widgets.dart';
 import '../editor/editor.dart';
+import '../editor/note_cover.dart';
 import 'project_widgets.dart';
 
 /// One project: header (title, status, software), a checklist view over the
@@ -30,16 +31,21 @@ class ProjectDetailScreen extends ConsumerWidget {
     final statusOptions =
         schema.fields.firstWhere((f) => f.name == 'status').options ?? const ['active', 'paused', 'done'];
     final title = doc.value?.fields['title'] as String? ?? 'Untitled';
+    final coverVal = doc.value?.fields['cover'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            BackNavButton(onTap: () => ref.read(projectsNavProvider.notifier).showList()),
-            const SizedBox(width: DashSpace.x2),
-            Expanded(child: Text(title, style: DashType.display, overflow: TextOverflow.ellipsis)),
-          ],
+        NoteCoverHeader(
+          cover: coverVal is String ? coverVal : null,
+          onChanged: (v) => notifier.setField('cover', v),
+          title: Row(
+            children: [
+              BackNavButton(onTap: () => ref.read(projectsNavProvider.notifier).showList()),
+              const SizedBox(width: DashSpace.x2),
+              Expanded(child: Text(title, style: DashType.display, overflow: TextOverflow.ellipsis)),
+            ],
+          ),
         ),
         if (doc.value?.changedOnDisk ?? false)
           ChangedOnDiskBanner(onReload: notifier.reload, message: 'This project changed on disk while you were editing.'),

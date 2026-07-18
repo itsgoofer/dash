@@ -245,13 +245,29 @@ class MarkdownReadView extends StatelessWidget {
     );
   }
 
+  /// Mid-paragraph `![alt](path)` — a real image constrained to the reading
+  /// measure, 4px radius (standalone image lines still use [_imageBlock]).
+  Widget _inlineImage(String relPath) => ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 260),
+        child: ClipRRect(
+          borderRadius: DashRadius.br,
+          child: Image.file(
+            File(p.join(vaultRoot, relPath)),
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => Text('Missing image: $relPath', style: DashType.small.copyWith(color: DashColors.text2)),
+          ),
+        ),
+      );
+
   // ── Inline ──────────────────────────────────────────────────────────────
 
   static final _inlineRe = RegExp(
     r'(`[^`]+`)'
+    r'|(!\[[^\]]*\]\([^)]*\))'
     r'|(\[[^\]]*\]\([^)]*\))'
     r'|(\*\*[^*]+\*\*)'
     r'|(~~[^~]+~~)'
+    r'|(<u>[^<]+</u>)'
     r'|(\*[^*\n]+\*)',
   );
   static final _linkRe = RegExp(r'\[([^\]]*)\]\(([^)]*)\)');
@@ -265,12 +281,17 @@ class MarkdownReadView extends StatelessWidget {
       if (m.group(1) != null) {
         out.add(TextSpan(text: s.substring(1, s.length - 1), style: base.copyWith(fontFamily: DashType.codeFamily, fontSize: 13, color: DashColors.text0, background: Paint()..color = DashColors.bg1)));
       } else if (m.group(2) != null) {
+        final im = _linkRe.firstMatch(s)!;
+        out.add(WidgetSpan(alignment: PlaceholderAlignment.middle, child: _inlineImage(im.group(2)!)));
+      } else if (m.group(3) != null) {
         final l = _linkRe.firstMatch(s)!;
         out.add(TextSpan(text: l.group(1), style: base.copyWith(color: DashColors.accent)));
-      } else if (m.group(3) != null) {
-        out.add(TextSpan(text: s.substring(2, s.length - 2), style: base.copyWith(fontWeight: FontWeight.w700, color: base.color == DashColors.text2 ? base.color : DashColors.text0)));
       } else if (m.group(4) != null) {
+        out.add(TextSpan(text: s.substring(2, s.length - 2), style: base.copyWith(fontWeight: FontWeight.w700, color: base.color == DashColors.text2 ? base.color : DashColors.text0)));
+      } else if (m.group(5) != null) {
         out.add(TextSpan(text: s.substring(2, s.length - 2), style: base.copyWith(decoration: TextDecoration.lineThrough, color: DashColors.text1)));
+      } else if (m.group(6) != null) {
+        out.add(TextSpan(text: s.substring(3, s.length - 4), style: base.copyWith(decoration: TextDecoration.underline)));
       } else {
         out.add(TextSpan(text: s.substring(1, s.length - 1), style: base.copyWith(fontStyle: FontStyle.italic)));
       }
