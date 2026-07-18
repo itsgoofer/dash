@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/feeds.dart';
 import '../../core/weather.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
@@ -22,10 +23,10 @@ class TelemetryTicker extends ConsumerStatefulWidget {
 
 class _TelemetryTickerState extends ConsumerState<TelemetryTicker> {
   static final _launch = DateTime.now();
-  static const _kGenerators = 9;
+  static const _kGenerators = 11;
   final _lines = <String>[];
   Timer? _timer;
-  int _kind = 0;
+  int _kind = 0, _newsIdx = 0, _mktIdx = 0; // rotate feed items so consecutive lines differ
 
   @override
   void initState() {
@@ -47,7 +48,7 @@ class _TelemetryTickerState extends ConsumerState<TelemetryTicker> {
       if (line == null) continue;
       setState(() {
         _lines.add(line);
-        if (_lines.length > 6) _lines.removeAt(0);
+        if (_lines.length > 8) _lines.removeAt(0);
       });
       return;
     }
@@ -88,9 +89,25 @@ class _TelemetryTickerState extends ConsumerState<TelemetryTicker> {
       case 8:
         final b = brainStats.value;
         return b.nodes == 0 ? null : 'SYN ▸ CORTEX ${b.nodes} NODES / ${b.edges} LINKS';
+      case 9:
+        final f = ref.read(feedsProvider).value;
+        if (f == null) return 'NWS ▸ NEWS LINK OFFLINE';
+        if (f.headlines.isEmpty) return null;
+        return 'NWS ▸ ${f.headlines[_newsIdx++ % f.headlines.length].toUpperCase()}';
+      case 10:
+        final f = ref.read(feedsProvider).value;
+        if (f == null || f.quotes.isEmpty) return null;
+        final q = f.quotes[_mktIdx++ % f.quotes.length];
+        return 'MKT ▸ ${q.$1} ${_price(q.$2)} ${q.$3 >= 0 ? '▲' : '▼'}${q.$3.abs().toStringAsFixed(1)}%';
     }
     return null;
   }
+
+  static String _price(double v) => v >= 100
+      ? NumberFormat('#,##0').format(v)
+      : v >= 1
+          ? v.toStringAsFixed(2)
+          : v.toStringAsFixed(4);
 
   static String _rel(DateTime t) {
     final d = DateTime.now().difference(t);

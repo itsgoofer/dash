@@ -1,10 +1,9 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
-import '../../vault/vault_scaffold.dart';
+import '../../vault/vault_actions.dart';
 import '../../widgets/glass_panel.dart';
 import '../../widgets/glow_text.dart';
 
@@ -22,20 +21,20 @@ class _VaultPickerState extends ConsumerState<VaultPicker> {
   String? _error;
 
   Future<void> _openVault() async {
-    final dir = await FilePicker.getDirectoryPath();
+    final dir = await pickVaultDir();
     if (dir == null) return;
     await ref.read(vaultPathProvider.notifier).setPath(dir);
   }
 
   Future<void> _createVault() async {
-    final dir = await FilePicker.getDirectoryPath();
+    final dir = await pickVaultDir();
     if (dir == null) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await scaffoldVault(dir);
+      await createVaultAt(dir);
       await ref.read(vaultPathProvider.notifier).setPath(dir);
     } catch (e) {
       setState(() => _error = 'Could not create vault: $e');

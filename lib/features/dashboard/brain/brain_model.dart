@@ -12,10 +12,17 @@ class BrainNode {
 /// Static, seeded brain: ~300 nodes on a noisy two-lobe surface plus precomputed
 /// nearest-neighbour edges. Built once; the painter only transforms it.
 class BrainModel {
-  BrainModel(this.nodes, this.edges, this.glow);
+  BrainModel(this.nodes, this.edges, this.glow)
+      : adj = List.generate(nodes.length, (_) => <int>[]) {
+    for (var e = 0; e < edges.length; e++) {
+      adj[edges[e].$1].add(e);
+      adj[edges[e].$2].add(e);
+    }
+  }
   final List<BrainNode> nodes;
   final List<(int, int)> edges; // (lo, hi) index pairs, deduped
   final Set<int> glow; // brightest node indices that get an additive blur
+  final List<List<int>> adj; // node index -> incident edge indices (for cascades)
 
   factory BrainModel.generate({int nodeCount = 300, int seed = 7}) {
     final rnd = Random(seed);

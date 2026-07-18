@@ -72,7 +72,7 @@ class _DashTextFieldState extends State<DashTextField> {
       child: AnimatedContainer(
         duration: DashMotion.hover,
         height: widget.height,
-        padding: const EdgeInsets.symmetric(horizontal: DashSpace.x2),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: DashColors.bg1,
           borderRadius: DashRadius.br,
@@ -107,6 +107,7 @@ class _DashTextFieldState extends State<DashTextField> {
                     : null,
                 decoration: InputDecoration(
                   isCollapsed: true,
+                  contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -315,7 +316,7 @@ class _DashDropdownState<T> extends State<DashDropdown<T>> {
     return AnimatedContainer(
       duration: DashMotion.hover,
       height: widget.height,
-      padding: const EdgeInsets.only(left: DashSpace.x2, right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: DashColors.bg1,
         borderRadius: DashRadius.br,
@@ -404,7 +405,7 @@ class DashMultiSelect extends StatelessWidget {
       triggerBuilder: (context, open, hovering) => AnimatedContainer(
         duration: DashMotion.hover,
         constraints: const BoxConstraints(minHeight: DashSize.control),
-        padding: const EdgeInsets.symmetric(horizontal: DashSpace.x2, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           color: DashColors.bg1,
           borderRadius: DashRadius.br,
@@ -711,6 +712,7 @@ class _AddOptionRowState extends State<_AddOptionRow> {
               cursorHeight: 13,
               decoration: InputDecoration(
                 isCollapsed: true,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -753,7 +755,7 @@ class _DashDateFieldState extends State<DashDateField> {
       triggerBuilder: (context, open, hovering) => AnimatedContainer(
         duration: DashMotion.hover,
         height: DashSize.control,
-        padding: const EdgeInsets.symmetric(horizontal: DashSpace.x2),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: DashColors.bg1,
           borderRadius: DashRadius.br,

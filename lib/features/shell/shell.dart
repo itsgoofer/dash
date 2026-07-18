@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +9,10 @@ import 'package:path/path.dart' as p;
 
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
+import '../../vault/vault_actions.dart';
 import '../../widgets/ambient_backdrop.dart';
+import '../../widgets/confirm_dialog.dart';
+import '../../widgets/dash_controls.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/glow_text.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -386,61 +390,171 @@ class _HudClockState extends State<_HudClock> {
   );
 }
 
-/// Condensed vault chip: vault name plus the conflicted-copy warning that
-/// lived in the old sidebar banner (icon + count, full message in a tooltip).
-class _VaultChip extends ConsumerWidget {
+/// Condensed vault chip: vault name + conflicted-copy warning, now clickable —
+/// opens a dash-styled menu to open/create/move the vault or reveal it.
+class _VaultChip extends ConsumerStatefulWidget {
   const _VaultChip();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vaultPath = ref.watch(vaultPathProvider).value;
-    final index = ref.watch(indexProvider).value;
-    if (vaultPath == null) return const SizedBox.shrink();
+  ConsumerState<_VaultChip> createState() => _VaultChipState();
+}
 
-    final conflicts = index?.conflictedPaths.length ?? 0;
-    final chip = Container(
+class _VaultChipState extends ConsumerState<_VaultChip> {
+  bool _moving = false;
+  String? _error;
+
+  Future<void> _openVault() async {
+    final dir = await pickVaultDir();
+    if (dir == null) return;
+    if (!await looksLikeVault(dir)) return setState(() => _error = "That folder isn't a vault.");
+    setState(() => _error = null);
+    await ref.read(vaultPathProvider.notifier).setPath(dir);
+  }
+
+  Future<void> _createVault() async {
+    final dir = await pickVaultDir();
+    if (dir == null) return;
+    setState(() => _error = null);
+    try {
+      await createVaultAt(dir);
+      await ref.read(vaultPathProvider.notifier).setPath(dir);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Could not create vault: $e');
+    }
+  }
+
+  Future<void> _moveVault(String current) async {
+    final dest = await pickVaultDir();
+    if (dest == null || !mounted) return;
+    final ok = await showConfirmDialog(context,
+        title: 'Move vault?',
+        message: 'Move "${p.basename(current)}" into this folder? The app will reopen it at its new location.',
+        destructive: false,
+        confirmLabel: 'Move');
+    if (!ok) return;
+    setState(() {
+      _moving = true;
+      _error = null;
+    });
+    try {
+      final target = await moveVault(current, dest);
+      await ref.read(vaultPathProvider.notifier).setPath(target); // rebuilds index + watcher on the new path
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _moving = false);
+    }
+  }
+
+  Widget _chip(String vaultPath, int conflicts, bool active) {
+    final chip = AnimatedContainer(
+      duration: DashMotion.hover,
       height: DashSize.controlCompact,
       padding: const EdgeInsets.symmetric(horizontal: DashSpace.x2),
       decoration: BoxDecoration(
         color: DashColors.glassFill,
         borderRadius: DashRadius.br,
         border: Border.all(
-          color: conflicts > 0
-              ? DashColors.warning.withValues(alpha: 0.5)
-              : DashColors.glassBorder,
+          color: active
+              ? DashColors.accent.withValues(alpha: 0.5)
+              : conflicts > 0
+                  ? DashColors.warning.withValues(alpha: 0.5)
+                  : DashColors.glassBorder,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (conflicts > 0) ...[
+          if (conflicts > 0 && !_moving) ...[
             const DashIcon('warning', size: 12, color: DashColors.warning),
             const SizedBox(width: DashSpace.x1),
-            Text(
-              '$conflicts',
-              style: DashType.small.copyWith(color: DashColors.warning),
-            ),
+            Text('$conflicts', style: DashType.small.copyWith(color: DashColors.warning)),
             const SizedBox(width: DashSpace.x2),
           ],
           Text(
-            p.basename(vaultPath).toUpperCase(),
-            style: DashType.hudLabel.copyWith(
-              fontSize: 10.5,
-              letterSpacing: 1.5,
-            ),
+            _moving ? 'MOVING…' : p.basename(vaultPath).toUpperCase(),
+            style: DashType.hudLabel.copyWith(fontSize: 10.5, letterSpacing: 1.5),
             overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
-
-    return conflicts > 0
+    return conflicts > 0 && !_moving
         ? Tooltip(
-            message:
-                '$conflicts conflicted ${conflicts == 1 ? 'copy' : 'copies'} in the vault',
-            child: chip,
-          )
+            message: '$conflicts conflicted ${conflicts == 1 ? 'copy' : 'copies'} in the vault',
+            child: chip)
         : chip;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vaultPath = ref.watch(vaultPathProvider).value;
+    final index = ref.watch(indexProvider).value;
+    if (vaultPath == null) return const SizedBox.shrink();
+    final conflicts = index?.conflictedPaths.length ?? 0;
+
+    return DashMenuAnchor(
+      menuWidth: 184,
+      triggerBuilder: (context, open, hovering) => _chip(vaultPath, conflicts, open || hovering),
+      contentBuilder: (context, close) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _VaultMenuItem(icon: 'folder_open', label: 'Open vault…', enabled: !_moving, onTap: () { close(); _openVault(); }),
+          _VaultMenuItem(icon: 'add', label: 'Create vault…', enabled: !_moving, onTap: () { close(); _createVault(); }),
+          _VaultMenuItem(
+              icon: 'drag_indicator', label: _moving ? 'Moving…' : 'Move vault…', enabled: !_moving, onTap: () { close(); _moveVault(vaultPath); }),
+          _VaultMenuItem(icon: 'open_in_new', label: 'Reveal in Finder', enabled: true, onTap: () { close(); Process.run('open', [vaultPath]); }),
+          if (_error != null)
+            Padding(padding: const EdgeInsets.all(6), child: Text(_error!, style: DashType.small.copyWith(color: DashColors.danger))),
+        ],
+      ),
+    );
+  }
+}
+
+/// One row of the vault menu — icon + label with hover, honouring [enabled].
+class _VaultMenuItem extends StatefulWidget {
+  const _VaultMenuItem({required this.icon, required this.label, required this.onTap, this.enabled = true});
+  final String icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  @override
+  State<_VaultMenuItem> createState() => _VaultMenuItemState();
+}
+
+class _VaultMenuItemState extends State<_VaultMenuItem> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = !widget.enabled ? DashColors.text2 : _hovering ? DashColors.text0 : DashColors.text1;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      cursor: widget.enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: widget.enabled ? widget.onTap : null,
+        child: AnimatedContainer(
+          duration: DashMotion.hover,
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: _hovering && widget.enabled ? DashColors.hover : Colors.transparent,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: Row(
+            children: [
+              DashIcon(widget.icon, size: 13, color: color),
+              const SizedBox(width: DashSpace.x2),
+              Text(widget.label, style: DashType.label.copyWith(color: color)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

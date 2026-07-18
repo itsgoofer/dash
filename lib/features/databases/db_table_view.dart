@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -16,6 +17,7 @@ import '../../widgets/dash_icon.dart';
 import '../../widgets/empty_state.dart';
 import 'db_widgets.dart';
 import 'schema_editor.dart';
+import 'schema_ops.dart';
 
 const _actionsWidth = 60.0;
 const _minColWidth = 80.0;
@@ -188,6 +190,12 @@ class _DbTableScreenState extends ConsumerState<DbTableScreen> {
                                   columns: columns,
                                   widthOf: widthOf,
                                   schema: schema,
+                                  onCommit: (col, value) => ref
+                                      .read(dbEntryProvider(
+                                              (slug: widget.slug, path: rows[i].path)).notifier)
+                                      .commitField(col, value),
+                                  onAddOption: (field, option) =>
+                                      addSchemaOption(ref, widget.slug, field, option),
                                   onOpen: () => ref
                                       .read(databasesNavProvider.notifier)
                                       .showEntry(widget.slug, path: rows[i].path),
@@ -441,6 +449,8 @@ class _EntryRow extends StatefulWidget {
     required this.columns,
     required this.widthOf,
     required this.schema,
+    required this.onCommit,
+    required this.onAddOption,
     required this.onOpen,
     required this.onDelete,
   });
@@ -449,6 +459,8 @@ class _EntryRow extends StatefulWidget {
   final List<String> columns;
   final double Function(String) widthOf;
   final DbSchema schema;
+  final void Function(String col, dynamic value) onCommit;
+  final void Function(String field, String option) onAddOption;
   final VoidCallback onOpen;
   final VoidCallback onDelete;
 
@@ -458,8 +470,79 @@ class _EntryRow extends StatefulWidget {
 
 class _EntryRowState extends State<_EntryRow> {
   bool _hovering = false;
+  String? _editCol; // column currently in inline-edit mode
 
   DbField? _fieldFor(String name) => widget.schema.fields.where((f) => f.name == name).firstOrNull;
+
+  void _exit() => setState(() => _editCol = null);
+  void _commit(String col, dynamic v) {
+    widget.onCommit(col, v);
+    _exit();
+  }
+
+  KeyEventResult _onEsc(FocusNode n, KeyEvent e) {
+    if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+      _exit();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// The type-appropriate inline editor shown when a cell is double-clicked.
+  Widget _editor(String col, DbField? field) {
+    final value = widget.row.frontmatter[col];
+    final options = field?.options ?? const <String>[];
+    final chips = [for (final o in options) DashOption(o, o, chipColor: DashChip.optionColor(o))];
+    switch (field?.type) {
+      case FieldType.select:
+        return Focus(
+          autofocus: true,
+          onKeyEvent: _onEsc,
+          child: DashDropdown<String>(
+            value: value as String?,
+            options: chips,
+            onChanged: (v) => _commit(col, v),
+            onAddOption: (o) {
+              widget.onAddOption(col, o);
+              _commit(col, o);
+            },
+          ),
+        );
+      case FieldType.multiselect:
+        final sel = (value as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+        return Focus(
+          autofocus: true,
+          onKeyEvent: _onEsc,
+          child: DashMultiSelect(
+            values: sel,
+            options: chips,
+            onChanged: (v) => widget.onCommit(col, v), // keep menu open; exit on Esc/next cell
+            onAddOption: (o) {
+              widget.onAddOption(col, o);
+              widget.onCommit(col, [...sel, o]);
+            },
+          ),
+        );
+      case FieldType.date:
+        return Focus(
+          autofocus: true,
+          onKeyEvent: _onEsc,
+          child: DashDateField(value: value?.toString(), onChanged: (v) => _commit(col, v)),
+        );
+      case FieldType.number:
+        return _InlineTextEditor(
+            initial: value?.toString() ?? '',
+            numeric: true,
+            onCommit: (t) => _commit(col, num.tryParse(t)),
+            onCancel: _exit);
+      default: // text, url
+        return _InlineTextEditor(
+            initial: value?.toString() ?? '',
+            numeric: false,
+            onCommit: (t) => _commit(col, t.isEmpty ? null : t),
+            onCancel: _exit);
+    }
+  }
 
   Widget _cell(String col) {
     final field = _fieldFor(col);
@@ -490,6 +573,36 @@ class _EntryRowState extends State<_EntryRow> {
     };
   }
 
+  /// One column's cell: checkbox toggles on click; every other type opens the
+  /// entry on single-click and enters inline edit on double-click.
+  Widget _cellSlot(String col) {
+    final field = _fieldFor(col);
+    const pad = EdgeInsets.symmetric(horizontal: DashSpace.x2);
+    if (field?.type == FieldType.checkbox) {
+      final v = widget.row.frontmatter[col] == true;
+      return Padding(
+        padding: pad,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: DashCheckbox(value: v, onChanged: (nv) => widget.onCommit(col, nv)),
+        ),
+      );
+    }
+    final editing = _editCol == col;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: editing ? () {} : widget.onOpen,
+      onDoubleTap: editing ? null : () => setState(() => _editCol = col),
+      child: Padding(
+        padding: pad,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: editing ? _editor(col, field) : _cell(col),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -507,13 +620,7 @@ class _EntryRowState extends State<_EntryRow> {
           child: Row(
             children: [
               for (final col in widget.columns)
-                SizedBox(
-                  width: widget.widthOf(col),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: DashSpace.x2),
-                    child: Align(alignment: Alignment.centerLeft, child: _cell(col)),
-                  ),
-                ),
+                SizedBox(width: widget.widthOf(col), child: _cellSlot(col)),
               SizedBox(
                 width: _actionsWidth,
                 child: Visibility(
@@ -530,6 +637,66 @@ class _EntryRowState extends State<_EntryRow> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Borderless in-cell text/number editor: commits on Enter or blur (once),
+/// cancels on Escape.
+class _InlineTextEditor extends StatefulWidget {
+  const _InlineTextEditor(
+      {required this.initial, required this.numeric, required this.onCommit, required this.onCancel});
+  final String initial;
+  final bool numeric;
+  final ValueChanged<String> onCommit;
+  final VoidCallback onCancel;
+
+  @override
+  State<_InlineTextEditor> createState() => _InlineTextEditorState();
+}
+
+class _InlineTextEditorState extends State<_InlineTextEditor> {
+  late final TextEditingController _c = TextEditingController(text: widget.initial);
+  bool _done = false;
+
+  void _commit() {
+    if (_done) return;
+    _done = true;
+    widget.onCommit(_c.text);
+  }
+
+  void _cancel() {
+    if (_done) return;
+    _done = true;
+    widget.onCancel();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onFocusChange: (has) {
+        if (!has) _commit();
+      },
+      onKeyEvent: (n, e) {
+        if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+          _cancel();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: DashTextField(
+        controller: _c,
+        autofocus: true,
+        numeric: widget.numeric,
+        height: 28,
+        onSubmitted: (_) => _commit(),
       ),
     );
   }

@@ -532,6 +532,15 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
     _schedule();
   }
 
+  /// Sets one field and writes immediately — for inline table-cell edits.
+  Future<void> commitField(String name, dynamic value) async {
+    final d = state.value ?? await future;
+    if (_deepEq.equals(d.fields[name], value)) return;
+    state = AsyncData(d.copyWith(fields: {...d.fields, name: value}, dirty: true));
+    _timer?.cancel();
+    await _flush();
+  }
+
   void setBody(String body) {
     final d = state.value;
     if (d == null || d.body == body) return;

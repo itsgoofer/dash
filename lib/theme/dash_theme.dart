@@ -130,7 +130,7 @@ abstract final class DashType {
 
   static const ticker = TextStyle(
     fontFamily: _mono,
-    fontSize: 10.5,
+    fontSize: 9.5,
     height: 1.7,
     letterSpacing: 0.4,
     fontWeight: FontWeight.w400,

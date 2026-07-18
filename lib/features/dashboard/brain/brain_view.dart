@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -34,7 +35,17 @@ class _BrainViewState extends ConsumerState<BrainView>
   late final Ticker _ticker;
   Duration _prev = Duration.zero;
   double _nextPulse = 1.0;
+  double _nextStorm = 7.0;
   bool _dragging = false;
+
+  /// Spawn a pulse leaving [node] along a random incident edge (cascades).
+  void _fireFrom(int node, double t, int gen, {int avoidEdge = -1}) {
+    if (_input.pulses.length >= 26) return;
+    final adj = [for (final e in _model!.adj[node]) if (e != avoidEdge) e];
+    if (adj.isEmpty) return;
+    final e = adj[_rnd.nextInt(adj.length)];
+    _input.pulses.add(Pulse(e, t, 1.1 + _rnd.nextDouble() * 0.9, _model!.edges[e].$2 == node, gen: gen));
+  }
 
   @override
   void initState() {
@@ -58,15 +69,43 @@ class _BrainViewState extends ConsumerState<BrainView>
     if (!_dragging) _input.tiltOffset *= pow(0.25, dt).toDouble();
     _input.angleY = t * (2 * pi / 60) + _input.userAngle;
 
-    // Stochastic pulse spawn (~every 0.6–1s, 2–4 concurrent).
+    // Stochastic pulse spawn (~every 0.5–0.9s, up to 6 baseline).
     final edges = _model?.edges.length ?? 0;
     if (edges > 0 && t >= _nextPulse) {
-      if (_input.pulses.length < 4) {
+      if (_input.pulses.length < 6) {
         _input.pulses.add(Pulse(_rnd.nextInt(edges), t, 0.8 + _rnd.nextDouble() * 0.9, _rnd.nextBool()));
       }
-      _nextPulse = t + 0.6 + _rnd.nextDouble() * 0.4;
+      _nextPulse = t + 0.5 + _rnd.nextDouble() * 0.4;
+    }
+
+    // Arrivals fire their target neuron and cascade a generation deeper.
+    for (final p in _input.pulses.toList()) {
+      if (p.arrived || (t - p.t0) * p.speed < 1.0) continue;
+      p.arrived = true;
+      final (a, b) = _model!.edges[p.edge];
+      final node = p.reversed ? a : b;
+      if (node < _input.fire.length) _input.fire[node] = t;
+      if (p.gen < 3) {
+        final n = p.gen == 0 ? 1 + _rnd.nextInt(2) : (_rnd.nextDouble() < 0.55 ? 1 : 0);
+        for (var i = 0; i < n; i++) {
+          _fireFrom(node, t, p.gen + 1, avoidEdge: p.edge);
+        }
+      }
     }
     _input.pulses.removeWhere((p) => (t - p.t0) * p.speed > 1.3);
+
+    // Thought storm: every ~10–18s a neuron detonates — pulse burst + 3D
+    // shockwave that sweeps the whole brain (rendered by the painter).
+    if (_model != null && t >= _nextStorm) {
+      final node = _rnd.nextInt(_model!.nodes.length);
+      _input.storms.add((node, t));
+      if (node < _input.fire.length) _input.fire[node] = t;
+      for (var i = 0; i < 4; i++) {
+        _fireFrom(node, t, 1);
+      }
+      _nextStorm = t + 10 + _rnd.nextDouble() * 8;
+    }
+    _input.storms.removeWhere((s) => t - s.$2 > 2.5);
 
     final deg = (((_input.angleY * 180 / pi) % 360) + 360).round() % 360;
     if (deg != _rotDeg.value) _rotDeg.value = deg;
@@ -101,6 +140,8 @@ class _BrainViewState extends ConsumerState<BrainView>
       _bucket = bucket;
       _model = BrainModel.generate(nodeCount: bucket);
       _input.pulses.clear(); // old edge indices are invalid
+      _input.storms.clear();
+      _input.fire = Float32List(bucket)..fillRange(0, bucket, -100);
       final stats = (nodes: _model!.nodes.length, edges: _model!.edges.length);
       WidgetsBinding.instance.addPostFrameCallback((_) => brainStats.value = stats);
     }

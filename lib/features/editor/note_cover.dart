@@ -31,13 +31,12 @@ class _NoteCoverHeaderState extends ConsumerState<NoteCoverHeader> {
 
   Future<void> _pick() async {
     final res = await FilePicker.pickFiles(type: FileType.image, allowMultiple: false);
-    final path = (res == null || res.files.isEmpty) ? null : res.files.first.path;
-    if (path == null) return;
+    final f = (res == null || res.files.isEmpty) ? null : res.files.first;
+    final bytes = f == null ? null : f.bytes ?? (f.path != null ? await File(f.path!).readAsBytes() : null);
+    if (f == null || bytes == null) return;
     final root = ref.read(vaultPathProvider).value;
     if (root == null || root.isEmpty) return;
-    final rel = await ref
-        .read(vaultFsProvider)
-        .saveAttachment(root, await File(path).readAsBytes(), originalName: p.basename(path));
+    final rel = await ref.read(vaultFsProvider).saveAttachment(root, bytes, originalName: f.name);
     widget.onChanged(rel);
   }
 

@@ -71,6 +71,10 @@ Future<void> shotRun(ProviderContainer container) async {
   container.read(editorReadModeProvider.notifier).set(false);
   container.read(shellSectionProvider.notifier).select(ShellSection.journal);
   await _shot('journal_edit');
+  // Late dashboard re-shot: slow feeds (news/markets) have loaded by now and
+  // the brain has had time to enter a cascade/storm.
+  container.read(shellSectionProvider.notifier).select(ShellSection.dashboard);
+  await _shot('dashboard_late', delay: const Duration(seconds: 14));
   final prefs = await SharedPreferences.getInstance();
   _savedVaultPath == null
       ? await prefs.remove('vault_path')

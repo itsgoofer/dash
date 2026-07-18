@@ -151,7 +151,21 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
     if (root.isEmpty) return;
     final rel = await ref.read(vaultFsProvider).saveAttachment(root, bytes, originalName: originalName, isPaste: isPaste);
     final isImg = _imageExts.contains(p.extension(originalName).toLowerCase());
-    _insert(isImg ? '![]($rel)' : '[${p.basename(originalName)}]($rel)');
+    final snippet = isImg ? '![]($rel)' : '[${p.basename(originalName)}]($rel)';
+    // A drop/paste can land while in read view — switch to edit and append at
+    // the end so the inserted markdown is visible and editable.
+    if (_readNow) {
+      _exitRead();
+      _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+    }
+    _insert(snippet);
+  }
+
+  /// Force the editor out of read mode (drops/pastes always land in edit view).
+  void _exitRead() {
+    ref.read(editorReadModeProvider.notifier).set(null);
+    _readMode = false;
+    if (mounted) setState(() {});
   }
 
   Future<void> _onDrop(DropDoneDetails d) async {
@@ -192,9 +206,10 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
 
   Future<void> _pickImage() async {
     final res = await FilePicker.pickFiles(type: FileType.image, allowMultiple: false);
-    final path = (res == null || res.files.isEmpty) ? null : res.files.first.path;
-    if (path == null) return;
-    await _saveAndInsert(await File(path).readAsBytes(), p.basename(path));
+    final f = (res == null || res.files.isEmpty) ? null : res.files.first;
+    final bytes = f == null ? null : f.bytes ?? (f.path != null ? await File(f.path!).readAsBytes() : null);
+    if (f == null || bytes == null) return;
+    await _saveAndInsert(bytes, f.name);
   }
 
   String _extForFormat(FileFormat f) =>
@@ -383,7 +398,7 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
         return KeyEventResult.handled;
       }
     }
-    if (meta && k == LogicalKeyboardKey.keyV && !_readNow) {
+    if (meta && k == LogicalKeyboardKey.keyV) {
       _handlePaste();
       return KeyEventResult.handled;
     }
@@ -400,15 +415,8 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
         ? MarkdownReadView(body: _controller.text, vaultRoot: _root, onChanged: _onReadChanged, centered: widget.centered)
         : _editField();
 
-    return Stack(
-      children: [
-        Positioned.fill(child: surface),
-        Positioned(top: 0, right: 0, child: _ToggleButton(read: read, onTap: _toggleRead)),
-      ],
-    );
-  }
-
-  Widget _editField() {
+    // Focus (⌘V paste) + DropTarget wrap BOTH modes so images can be dropped or
+    // pasted from the read view too — they insert and flip back to edit.
     return Focus(
       canRequestFocus: false,
       skipTraversal: true,
@@ -417,15 +425,29 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
         onDragDone: _onDrop,
         onDragEntered: (_) => setState(() => _dragging = true),
         onDragExited: (_) => setState(() => _dragging = false),
-        child: Container(
-          decoration: _dragging
-              ? BoxDecoration(borderRadius: DashRadius.br, border: Border.all(color: DashColors.accent), color: DashColors.accentDim)
-              : null,
-          child: Align(
-            alignment: widget.centered ? Alignment.topCenter : Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: TextField(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Container(
+                decoration: _dragging
+                    ? BoxDecoration(borderRadius: DashRadius.br, border: Border.all(color: DashColors.accent), color: DashColors.accentDim)
+                    : null,
+                child: surface,
+              ),
+            ),
+            Positioned(top: 0, right: 0, child: _ToggleButton(read: read, onTap: _toggleRead)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _editField() {
+    return Align(
+      alignment: widget.centered ? Alignment.topCenter : Alignment.topLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: TextField(
                 key: _fieldKey,
                 controller: _controller,
                 onChanged: widget.onChanged,
@@ -450,9 +472,6 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }
