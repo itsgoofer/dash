@@ -75,29 +75,66 @@ abstract final class DashColors {
 
 abstract final class DashType {
   static const _family = 'Inter';
+  static const _display = 'Rajdhani';
   static const _mono = 'SF Mono';
 
   static const display = TextStyle(
-    fontFamily: _family,
-    fontSize: 22,
+    fontFamily: _display,
+    fontSize: 26,
     fontWeight: FontWeight.w700,
-    letterSpacing: -0.4,
+    letterSpacing: 1.0,
     color: DashColors.text0,
   );
 
   static const title = TextStyle(
-    fontFamily: _family,
-    fontSize: 16,
+    fontFamily: _display,
+    fontSize: 17,
     fontWeight: FontWeight.w600,
-    letterSpacing: -0.2,
+    letterSpacing: 0.8,
     color: DashColors.text0,
   );
 
   static const heading = TextStyle(
-    fontFamily: _family,
+    fontFamily: _display,
     fontSize: 13,
     fontWeight: FontWeight.w600,
+    letterSpacing: 1.5,
     color: DashColors.text0,
+  );
+
+  static const hudLabel = TextStyle(
+    fontFamily: _display,
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 2.5,
+    color: DashColors.text1,
+  );
+
+  static const clock = TextStyle(
+    fontFamily: _display,
+    fontSize: 52,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.0,
+    fontFeatures: [FontFeature.tabularFigures()],
+    color: DashColors.text0,
+  );
+
+  static const clockSmall = TextStyle(
+    fontFamily: _display,
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.0,
+    fontFeatures: [FontFeature.tabularFigures()],
+    color: DashColors.text0,
+  );
+
+  static const ticker = TextStyle(
+    fontFamily: _mono,
+    fontSize: 10.5,
+    height: 1.7,
+    letterSpacing: 0.4,
+    fontWeight: FontWeight.w400,
+    color: DashColors.text1,
   );
 
   static const body = TextStyle(

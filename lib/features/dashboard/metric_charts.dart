@@ -9,7 +9,7 @@ import '../../theme/dash_theme.dart';
 final _series = [
   (key: 'rating', label: 'Rating', color: DashColors.accent),
   (key: 'energy', label: 'Energy', color: DashColors.accent2),
-  (key: 'productivity', label: 'Focus', color: DashColors.success),
+  (key: 'productivity', label: 'Productivity', color: DashColors.success),
 ];
 
 int? _valueFor(DayMetrics d, String key) =>
@@ -27,7 +27,7 @@ class MetricCharts extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, c) {
         if (empty) return const _EmptyChart();
-        const labelStrip = 76.0, bottomAxis = 22.0, topPad = 6.0;
+        const labelStrip = 112.0, bottomAxis = 22.0, topPad = 6.0;
         final plotH = c.maxHeight - bottomAxis - topPad;
         const minGap = 16.0;
         final labels = [
@@ -53,7 +53,8 @@ class MetricCharts extends ConsumerWidget {
                 top: top,
                 child: Padding(
                   padding: const EdgeInsets.only(left: DashSpace.x2),
-                  child: Text(label, style: DashType.small.copyWith(color: color, fontWeight: FontWeight.w600)),
+                  child: Text(label.toUpperCase(),
+                      style: DashType.hudLabel.copyWith(fontSize: 10, letterSpacing: 1.5, color: color)),
                 ),
               ),
           ],
@@ -76,23 +77,26 @@ class MetricCharts extends ConsumerWidget {
             if (_valueFor(m[i], key) case final v?) FlSpot(i.toDouble(), v.toDouble()) else FlSpot.nullSpot,
         ];
 
-    // v2: minimal — thin lines, faint fill, no glow underlays.
+    // HUD styling: slim lines with a soft accent glow and a faint fill.
     LineChartBarData line(String key, Color color) => LineChartBarData(
           spots: spots(key),
           isCurved: true,
           preventCurveOverShooting: true,
           color: color.withValues(alpha: 0.9),
-          barWidth: 1.5,
+          barWidth: 1.8,
+          shadow: Shadow(color: color.withValues(alpha: 0.45), blurRadius: 6),
           dotData: const FlDotData(show: false),
           belowBarData: BarAreaData(
             show: true,
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [color.withValues(alpha: 0.07), color.withValues(alpha: 0)],
+              colors: [color.withValues(alpha: 0.08), color.withValues(alpha: 0)],
             ),
           ),
         );
+
+    final axisStyle = DashType.clockSmall.copyWith(fontSize: 10, color: DashColors.text2);
 
     return LineChartData(
       minX: 0,
@@ -108,7 +112,17 @@ class MetricCharts extends ConsumerWidget {
       ),
       borderData: FlBorderData(show: false),
       titlesData: FlTitlesData(
-        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 2,
+            reservedSize: 24,
+            getTitlesWidget: (v, _) => Padding(
+              padding: const EdgeInsets.only(right: DashSpace.x1),
+              child: Text('${v.toInt()}', style: axisStyle, textAlign: TextAlign.right),
+            ),
+          ),
+        ),
         rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         bottomTitles: AxisTitles(
@@ -121,7 +135,7 @@ class MetricCharts extends ConsumerWidget {
               if (i < 0 || i >= m.length) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(top: DashSpace.x1),
-                child: Text('${m[i].date.day}', style: DashType.small.copyWith(color: DashColors.text2)),
+                child: Text('${m[i].date.day}', style: axisStyle),
               );
             },
           ),

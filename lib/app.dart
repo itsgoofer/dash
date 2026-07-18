@@ -17,7 +17,9 @@ class DashApp extends ConsumerWidget {
       theme: buildDashTheme(),
       darkTheme: buildDashTheme(),
       themeMode: ThemeMode.dark,
-      home: const AppRoot(),
+      // Remount the whole tree on accent change: many widgets read DashColors.accent
+      // directly at build time and won't otherwise pick up the new value.
+      home: KeyedSubtree(key: ValueKey(DashColors.accent), child: const AppRoot()),
     );
   }
 }
