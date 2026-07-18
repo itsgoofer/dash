@@ -28,9 +28,9 @@ Verify: `flutter analyze` clean ✓. Shot-harness end-to-end pass pending (creat
 
 ## Phase 2 — Vault modal (bug 5) [Sonnet]
 
-- [ ] Replace `_VaultChip` DashMenuAnchor (`lib/features/shell/shell.dart:395-514`) with a centered modal dialog following `showConfirmDialog` pattern (`lib/widgets/confirm_dialog.dart:8-33`); actions from `lib/vault/vault_actions.dart`. Keep DashIcon/4px-radius design language.
+- [x] Replaced `_VaultChip` DashMenuAnchor with a centered `showDialog`/`Dialog` modal (vault-name header + reused `_VaultMenuItem` rows); errors now surface via the chip tooltip. Chip is a click target (MouseRegion + GestureDetector). No edge clipping.
 
-Verify: shot of vault modal centered, no truncation, near-right-edge window width.
+Verify: `flutter analyze` clean ✓. Visual shot pending.
 
 ## Phase 3 — Editor/layout redesign (11, 12, 13, 14) [Opus for 14, Sonnet for rest]
 

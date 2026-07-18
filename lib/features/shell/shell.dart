@@ -12,7 +12,6 @@ import '../../theme/dash_theme.dart';
 import '../../vault/vault_actions.dart';
 import '../../widgets/ambient_backdrop.dart';
 import '../../widgets/confirm_dialog.dart';
-import '../../widgets/dash_controls.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/glow_text.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -401,6 +400,7 @@ class _VaultChip extends ConsumerStatefulWidget {
 
 class _VaultChipState extends ConsumerState<_VaultChip> {
   bool _moving = false;
+  bool _hovering = false;
   String? _error;
 
   Future<void> _openVault() async {
@@ -446,6 +446,61 @@ class _VaultChipState extends ConsumerState<_VaultChip> {
     }
   }
 
+  /// Centered modal replacing the old edge-clipped dropdown — same actions,
+  /// via _VaultMenuItem rows.
+  void _showVaultMenu(BuildContext context, String vaultPath) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: DashColors.bg1,
+        shape: RoundedRectangleBorder(borderRadius: DashRadius.br, side: BorderSide(color: DashColors.glassBorder)),
+        child: Padding(
+          padding: const EdgeInsets.all(DashSpace.x3),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(p.basename(vaultPath), style: DashType.heading),
+              const SizedBox(height: DashSpace.x2),
+              _VaultMenuItem(
+                  icon: 'folder_open',
+                  label: 'Open vault…',
+                  enabled: !_moving,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _openVault();
+                  }),
+              _VaultMenuItem(
+                  icon: 'add',
+                  label: 'Create vault…',
+                  enabled: !_moving,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _createVault();
+                  }),
+              _VaultMenuItem(
+                  icon: 'drag_indicator',
+                  label: _moving ? 'Moving…' : 'Move vault…',
+                  enabled: !_moving,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _moveVault(vaultPath);
+                  }),
+              _VaultMenuItem(
+                  icon: 'open_in_new',
+                  label: 'Reveal in Finder',
+                  enabled: true,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    Process.run('open', [vaultPath]);
+                  }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _chip(String vaultPath, int conflicts, bool active) {
     final chip = AnimatedContainer(
       duration: DashMotion.hover,
@@ -479,11 +534,8 @@ class _VaultChipState extends ConsumerState<_VaultChip> {
         ],
       ),
     );
-    return conflicts > 0 && !_moving
-        ? Tooltip(
-            message: '$conflicts conflicted ${conflicts == 1 ? 'copy' : 'copies'} in the vault',
-            child: chip)
-        : chip;
+    final message = _error ?? (conflicts > 0 && !_moving ? '$conflicts conflicted ${conflicts == 1 ? 'copy' : 'copies'} in the vault' : null);
+    return message != null ? Tooltip(message: message, child: chip) : chip;
   }
 
   @override
@@ -493,21 +545,13 @@ class _VaultChipState extends ConsumerState<_VaultChip> {
     if (vaultPath == null) return const SizedBox.shrink();
     final conflicts = index?.conflictedPaths.length ?? 0;
 
-    return DashMenuAnchor(
-      menuWidth: 184,
-      triggerBuilder: (context, open, hovering) => _chip(vaultPath, conflicts, open || hovering),
-      contentBuilder: (context, close) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _VaultMenuItem(icon: 'folder_open', label: 'Open vault…', enabled: !_moving, onTap: () { close(); _openVault(); }),
-          _VaultMenuItem(icon: 'add', label: 'Create vault…', enabled: !_moving, onTap: () { close(); _createVault(); }),
-          _VaultMenuItem(
-              icon: 'drag_indicator', label: _moving ? 'Moving…' : 'Move vault…', enabled: !_moving, onTap: () { close(); _moveVault(vaultPath); }),
-          _VaultMenuItem(icon: 'open_in_new', label: 'Reveal in Finder', enabled: true, onTap: () { close(); Process.run('open', [vaultPath]); }),
-          if (_error != null)
-            Padding(padding: const EdgeInsets.all(6), child: Text(_error!, style: DashType.small.copyWith(color: DashColors.danger))),
-        ],
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: GestureDetector(
+        onTap: () => _showVaultMenu(context, vaultPath),
+        child: _chip(vaultPath, conflicts, _hovering),
       ),
     );
   }
