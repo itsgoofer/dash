@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/tasks.dart';
+import '../../../state/navigation.dart';
 import '../../../theme/dash_theme.dart';
+import '../../../vault/index.dart';
 
 /// Obsidian-like *read* view: renders a note body as styled document widgets —
 /// headings, real bold/italic, inline code, links, blockquotes, `> [!note]`
@@ -19,12 +21,19 @@ class MarkdownReadView extends StatelessWidget {
     required this.vaultRoot,
     required this.onChanged,
     this.centered = true,
+    this.index,
+    this.onOpenLink,
   });
 
   final String body;
   final String vaultRoot;
   final ValueChanged<String> onChanged;
   final bool centered;
+  /// Vault index, used to resolve `[[wikilinks]]` to an existing note (for
+  /// styling resolved vs. broken links). Null = every wikilink renders broken.
+  final VaultIndex? index;
+  /// Called with a wikilink's target name when a resolved link is clicked.
+  final ValueChanged<String>? onOpenLink;
 
   static final _heading = RegExp(r'^(#{1,3})\s+(.*)$');
   static final _task = RegExp(r'^(\s*)- \[([ xX])\]\s+(.*)$');
@@ -268,9 +277,35 @@ class MarkdownReadView extends StatelessWidget {
     r'|(\*\*[^*]+\*\*)'
     r'|(~~[^~]+~~)'
     r'|(<u>[^<]+</u>)'
-    r'|(\*[^*\n]+\*)',
+    r'|(\*[^*\n]+\*)'
+    r'|(\[\[[^\]\n]+\]\])'
+    r'|(?<![\w#/])(#[A-Za-z][\w/-]*)',
   );
   static final _linkRe = RegExp(r'\[([^\]]*)\]\(([^)]*)\)');
+
+  /// `[[target]]` / `[[target|alias]]` — accent + clickable when the target
+  /// resolves to a note in [index]; muted + inert (a "broken" link) otherwise.
+  InlineSpan _wikilinkSpan(String s, TextStyle base) {
+    final inner = s.substring(2, s.length - 2);
+    final pipe = inner.indexOf('|');
+    final target = pipe < 0 ? inner : inner.substring(0, pipe);
+    final name = pipe < 0 ? inner : inner.substring(pipe + 1);
+    final note = resolveWikilink(index, target);
+    if (note == null) {
+      return TextSpan(text: name, style: base.copyWith(color: DashColors.text2));
+    }
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => onOpenLink?.call(target),
+          child: Text(name, style: base.copyWith(color: DashColors.accent)),
+        ),
+      ),
+    );
+  }
 
   List<InlineSpan> _inline(String text, TextStyle base) {
     final out = <InlineSpan>[];
@@ -292,8 +327,12 @@ class MarkdownReadView extends StatelessWidget {
         out.add(TextSpan(text: s.substring(2, s.length - 2), style: base.copyWith(decoration: TextDecoration.lineThrough, color: DashColors.text1)));
       } else if (m.group(6) != null) {
         out.add(TextSpan(text: s.substring(3, s.length - 4), style: base.copyWith(decoration: TextDecoration.underline)));
-      } else {
+      } else if (m.group(7) != null) {
         out.add(TextSpan(text: s.substring(1, s.length - 1), style: base.copyWith(fontStyle: FontStyle.italic)));
+      } else if (m.group(8) != null) {
+        out.add(_wikilinkSpan(s, base));
+      } else {
+        out.add(TextSpan(text: s, style: base.copyWith(color: DashColors.accent, fontWeight: FontWeight.w600)));
       }
       last = m.end;
     }

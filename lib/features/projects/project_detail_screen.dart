@@ -11,6 +11,7 @@ import '../../widgets/glass_panel.dart';
 import '../../widgets/properties_sidebar.dart';
 import '../databases/db_widgets.dart';
 import '../databases/template_menu.dart';
+import '../editor/backlinks_panel.dart';
 import '../editor/editor.dart';
 import '../editor/note_cover.dart';
 import 'project_widgets.dart';
@@ -95,6 +96,7 @@ class ProjectDetailScreen extends ConsumerWidget {
                   onChanged: (v) => notifier.setField('software', v),
                 ),
               ),
+              BacklinksPanel(path: path),
             ]),
           ],
         ),

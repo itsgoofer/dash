@@ -36,6 +36,7 @@ class _BrainViewState extends ConsumerState<BrainView>
   Duration _prev = Duration.zero;
   double _nextPulse = 1.0;
   double _nextStorm = 7.0;
+  double _activity = 0; // 0..1 real-graph liveliness (link density) → pulse/storm rate
   bool _dragging = false;
 
   /// Spawn a pulse leaving [node] along a random incident edge (cascades).
@@ -72,10 +73,10 @@ class _BrainViewState extends ConsumerState<BrainView>
     // Stochastic pulse spawn (~every 0.5–0.9s, up to 6 baseline).
     final edges = _model?.edges.length ?? 0;
     if (edges > 0 && t >= _nextPulse) {
-      if (_input.pulses.length < 6) {
+      if (_input.pulses.length < 6 + (_activity * 8).round()) {
         _input.pulses.add(Pulse(_rnd.nextInt(edges), t, 0.8 + _rnd.nextDouble() * 0.9, _rnd.nextBool()));
       }
-      _nextPulse = t + 0.5 + _rnd.nextDouble() * 0.4;
+      _nextPulse = t + (0.5 + _rnd.nextDouble() * 0.4) * (1 - 0.45 * _activity);
     }
 
     // Arrivals fire their target neuron and cascade a generation deeper.
@@ -103,7 +104,7 @@ class _BrainViewState extends ConsumerState<BrainView>
       for (var i = 0; i < 4; i++) {
         _fireFrom(node, t, 1);
       }
-      _nextStorm = t + 10 + _rnd.nextDouble() * 8;
+      _nextStorm = t + (10 + _rnd.nextDouble() * 8) * (1 - 0.45 * _activity);
     }
     _input.storms.removeWhere((s) => t - s.$2 > 2.5);
 
@@ -135,6 +136,10 @@ class _BrainViewState extends ConsumerState<BrainView>
   Widget build(BuildContext context) {
     // Node count from the real vault, bucketed in steps of 25 to avoid churn.
     final total = ref.watch(dashboardStatsProvider.select((s) => s.totalNotes));
+    // Real link-graph density feeds the brain's liveliness: a well-connected
+    // vault pulses and storms more often.
+    final links = ref.watch(linkGraphProvider.select((g) => g.linkCount));
+    _activity = total < 1 ? 0 : (links / total / 3).clamp(0.0, 1.0);
     final bucket = (((total * 3).clamp(180, 600) / 25).round() * 25).clamp(180, 600);
     if (bucket != _bucket) {
       _bucket = bucket;
@@ -177,7 +182,7 @@ class _BrainViewState extends ConsumerState<BrainView>
               child: ValueListenableBuilder(
                 valueListenable: brainStats,
                 builder: (context, s, child) =>
-                    Text('NODES ${s.nodes} · EDGES ${s.edges}', style: DashType.ticker),
+                    Text('NODES ${s.nodes} · EDGES ${s.edges} · LINKS $links', style: DashType.ticker),
               ),
             ),
             Positioned(

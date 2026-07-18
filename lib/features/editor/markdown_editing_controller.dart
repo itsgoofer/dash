@@ -27,7 +27,9 @@ class MarkdownEditingController extends TextEditingController {
     r'|(\*\*[^*]+\*\*)' // 4 bold
     r'|(~~[^~]+~~)' // 5 strike
     r'|(<u>[^<]+</u>)' // 6 underline
-    r'|(\*[^*\n]+\*)', // 7 italic
+    r'|(\*[^*\n]+\*)' // 7 italic
+    r'|(\[\[[^\]\n]+\]\])' // 8 wikilink
+    r'|(?<![\w#/])(#[A-Za-z][\w/-]*)', // 9 tag
   );
 
   @override
@@ -130,8 +132,12 @@ class MarkdownEditingController extends TextEditingController {
         out.add(TextSpan(text: '<u>', style: marker));
         out.add(TextSpan(text: s.substring(3, s.length - 4), style: base.copyWith(decoration: TextDecoration.underline, color: DashColors.text0)));
         out.add(TextSpan(text: '</u>', style: marker));
-      } else {
+      } else if (m.group(7) != null) {
         _wrap(s, 1, base.copyWith(fontStyle: FontStyle.italic), marker, out);
+      } else if (m.group(8) != null) {
+        _wikilinkSpans(s, base, marker, out);
+      } else {
+        out.add(TextSpan(text: s, style: base.copyWith(color: DashColors.accent)));
       }
       last = m.end;
     }
@@ -175,6 +181,22 @@ class MarkdownEditingController extends TextEditingController {
         ),
       ),
     ));
+  }
+
+  /// `[[target]]` or `[[target|alias]]` — brackets (and target, when an alias
+  /// is present) stay in the dimmed/hidden marker style; the visible name
+  /// (alias if present, else target) is accented like a link label.
+  void _wikilinkSpans(String s, TextStyle base, TextStyle marker, List<InlineSpan> out) {
+    final inner = s.substring(2, s.length - 2);
+    final pipe = inner.indexOf('|');
+    out.add(TextSpan(text: '[[', style: marker));
+    if (pipe < 0) {
+      out.add(TextSpan(text: inner, style: base.copyWith(color: DashColors.accent)));
+    } else {
+      out.add(TextSpan(text: '${inner.substring(0, pipe)}|', style: marker));
+      out.add(TextSpan(text: inner.substring(pipe + 1), style: base.copyWith(color: DashColors.accent)));
+    }
+    out.add(TextSpan(text: ']]', style: marker));
   }
 
   /// Dimmed marker of width [n] on each side, styled content between.

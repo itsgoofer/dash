@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../state/navigation.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
@@ -136,6 +137,11 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
     inner.isEmpty
         ? _replaceRange(start, end, '[]()', TextSelection.collapsed(offset: start + 1))
         : _replaceRange(start, end, '[$inner]()', TextSelection.collapsed(offset: start + inner.length + 3));
+  }
+
+  void _openWikilink(String target) {
+    final note = resolveWikilink(ref.read(indexProvider).value, target);
+    if (note != null) openNote(ref, note);
   }
 
   void _onReadChanged(String body) {
@@ -412,7 +418,14 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
     _controller.vaultRoot = _root;
     final read = ref.watch(editorReadModeProvider) ?? _readMode;
     final Widget surface = read
-        ? MarkdownReadView(body: _controller.text, vaultRoot: _root, onChanged: _onReadChanged, centered: widget.centered)
+        ? MarkdownReadView(
+            body: _controller.text,
+            vaultRoot: _root,
+            onChanged: _onReadChanged,
+            centered: widget.centered,
+            index: ref.watch(indexProvider).value,
+            onOpenLink: _openWikilink,
+          )
         : _editField();
 
     // Focus (⌘V paste) + DropTarget wrap BOTH modes so images can be dropped or

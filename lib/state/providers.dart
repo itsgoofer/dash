@@ -424,6 +424,54 @@ final dashboardOpenTasksProvider = Provider<int>((ref) {
   return total;
 });
 
+// ─── Link graph (tags & backlinks) ────────────────────────────────────────────
+
+class LinkGraph {
+  const LinkGraph(this.backlinks, this.tagToPaths, this.linkCount);
+  final Map<String, List<String>> backlinks; // target path -> source paths
+  final Map<String, List<String>> tagToPaths; // tag -> note paths
+  final int linkCount; // total resolved links (drives brain-viz liveliness)
+  static const empty = LinkGraph({}, {}, 0);
+}
+
+/// Whole-vault link/tag graph, rebuilt whenever the index changes. Wikilink
+/// names resolve to a path by basename (then frontmatter title), case-insensitive.
+final linkGraphProvider = Provider<LinkGraph>((ref) {
+  final index = ref.watch(indexProvider).value;
+  if (index == null) return LinkGraph.empty;
+  final nameToPath = <String, String>{};
+  for (final m in index.byPath.values) {
+    nameToPath.putIfAbsent(p.basenameWithoutExtension(m.path).toLowerCase(), () => m.path);
+    final t = m.frontmatter['title'];
+    if (t is String && t.trim().isNotEmpty) nameToPath.putIfAbsent(t.toLowerCase(), () => m.path);
+  }
+  final backlinks = <String, List<String>>{};
+  final tagToPaths = <String, List<String>>{};
+  var linkCount = 0;
+  for (final m in index.byPath.values) {
+    for (final name in m.links) {
+      final target = nameToPath[name.trim().toLowerCase()];
+      if (target != null && target != m.path) {
+        (backlinks[target] ??= []).add(m.path);
+        linkCount++;
+      }
+    }
+    for (final tag in m.tags) {
+      (tagToPaths[tag] ??= []).add(m.path);
+    }
+  }
+  return LinkGraph(backlinks, tagToPaths, linkCount);
+});
+
+/// Notes linking to [path] (for the backlinks panel), newest first.
+final backlinksProvider = Provider.family<List<NoteMeta>, String>((ref, path) {
+  final graph = ref.watch(linkGraphProvider);
+  final index = ref.watch(indexProvider).value;
+  if (index == null) return const [];
+  return [for (final s in graph.backlinks[path] ?? const []) if (index.byPath[s] != null) index.byPath[s]!]
+    ..sort((a, b) => b.mtime.compareTo(a.mtime));
+});
+
 // ─── Databases ──────────────────────────────────────────────────────────────
 
 /// In-section navigation (db gallery → table → entry), no router — mirrors

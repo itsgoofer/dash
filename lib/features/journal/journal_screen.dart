@@ -6,6 +6,7 @@ import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/properties_sidebar.dart';
+import '../editor/backlinks_panel.dart';
 import '../editor/editor.dart';
 import '../editor/note_cover.dart';
 import 'journal_calendar.dart';
@@ -71,6 +72,7 @@ class JournalScreen extends ConsumerWidget {
           AsyncData(:final value) => PropertiesSidebar(children: [
               PropertyGroup(label: 'Metrics', child: JournalProperties(date: date, metrics: value.metrics)),
               const PropertyGroup(label: 'Calendar', child: JournalCalendar()),
+              BacklinksPanel(path: 'Journal/${date.year}/${DateFormat('yyyy-MM-dd').format(date)}.md'),
             ]),
           _ => const PropertiesSidebar(children: []),
         },

@@ -51,14 +51,41 @@ class VaultIndex {
   static NoteMeta metaFromContent(String relPath, String content) =>
       _metaFromBytes(relPath, utf8.encode(content), DateTime.now());
 
+  static final _wikiRe = RegExp(r'\[\[([^\]|]+)(?:\|[^\]]*)?\]\]');
+  static final _tagRe = RegExp(r'(?<![\w#/])#([A-Za-z][\w/-]*)');
+
+  /// Outgoing wikilink target names + tags (from body `#tag`s and a frontmatter
+  /// `tags:` list/string), deduped.
+  static (List<String>, List<String>) _linksAndTags(String body, Map<String, dynamic> data) {
+    final links = <String>[];
+    for (final m in _wikiRe.allMatches(body)) {
+      final name = m.group(1)!.trim();
+      if (name.isNotEmpty && !links.contains(name)) links.add(name);
+    }
+    final tags = <String>{for (final m in _tagRe.allMatches(body)) m.group(1)!};
+    final fm = data['tags'];
+    if (fm is List) {
+      for (final t in fm) {
+        final s = t.toString().trim();
+        if (s.isNotEmpty) tags.add(s);
+      }
+    } else if (fm is String && fm.trim().isNotEmpty) {
+      tags.add(fm.trim());
+    }
+    return (links, tags.toList());
+  }
+
   static NoteMeta _metaFromBytes(String relPath, List<int> bytes, DateTime mtime) {
     final parsed = Frontmatter.parse(utf8.decode(bytes));
+    final (links, tags) = _linksAndTags(parsed.body, parsed.data);
     return NoteMeta(
       path: relPath,
       type: NoteType.fromFrontmatter(parsed.data['type'] as String?),
       frontmatter: parsed.data,
       mtime: mtime,
       contentHash: fnv1a(bytes),
+      links: links,
+      tags: tags,
     );
   }
 

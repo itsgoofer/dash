@@ -9,6 +9,7 @@ import '../../widgets/confirm_dialog.dart';
 import '../../widgets/dash_chip.dart';
 import '../../widgets/dash_controls.dart';
 import '../../widgets/properties_sidebar.dart';
+import '../editor/backlinks_panel.dart';
 import '../editor/editor.dart';
 import '../editor/note_cover.dart';
 import 'db_widgets.dart';
@@ -114,6 +115,7 @@ class EntryForm extends ConsumerWidget {
                   onChanged: (v) => notifier.setField(f.name, v),
                   onAddOption: (o) => addSchemaOption(ref, slug, f.name, o),
                 ),
+              if (value.path != null) BacklinksPanel(path: value.path!),
             ]),
           ],
         ),

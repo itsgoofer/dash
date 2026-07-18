@@ -9,7 +9,9 @@ import '../../theme/dash_theme.dart';
 import '../../widgets/dash_controls.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/glass_panel.dart';
+import '../../widgets/properties_sidebar.dart';
 import '../databases/db_widgets.dart';
+import '../editor/backlinks_panel.dart';
 import '../editor/editor.dart';
 
 final _mtimeFmt = DateFormat('MMM d, yyyy');
@@ -204,20 +206,29 @@ class _NoteDetailScreen extends ConsumerWidget {
         ? ChangedOnDiskBanner(onReload: notifier.reload, message: 'This note changed on disk while you were editing.')
         : null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        header,
-        ?banner,
-        const SizedBox(height: DashSpace.x4),
-        switch (doc) {
-          AsyncData(:final value) => Expanded(
-              child: NoteEditor(key: ValueKey(path), initialText: value.body, onChanged: notifier.setBody, centered: true),
-            ),
-          AsyncError(:final error) =>
-            Expanded(child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger)))),
-          _ => Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
-        },
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              ?banner,
+              const SizedBox(height: DashSpace.x4),
+              switch (doc) {
+                AsyncData(:final value) => Expanded(
+                    child:
+                        NoteEditor(key: ValueKey(path), initialText: value.body, onChanged: notifier.setBody, centered: true),
+                  ),
+                AsyncError(:final error) =>
+                  Expanded(child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger)))),
+                _ => Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
+              },
+            ],
+          ),
+        ),
+        PropertiesSidebar(children: [BacklinksPanel(path: path)]),
       ],
     );
   }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/models/note.dart';
+import '../../state/navigation.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
@@ -179,32 +180,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette>
           ? note.frontmatter['title'] as String
           : p.basenameWithoutExtension(note.path);
 
-  /// Deep-links where the nav providers allow; otherwise just lands on the
-  /// closest section.
-  void _openNote(NoteMeta note) {
-    final shell = ref.read(shellSectionProvider.notifier);
-    switch (note.type) {
-      case NoteType.journal:
-        final raw = note.frontmatter['date'];
-        final date = raw is DateTime ? raw : DateTime.tryParse(raw?.toString() ?? '');
-        if (date != null) ref.read(selectedJournalDateProvider.notifier).set(date);
-        shell.select(ShellSection.journal);
-      case NoteType.db:
-        final slug = note.frontmatter['db'] as String?;
-        if (slug != null) {
-          ref.read(databasesNavProvider.notifier).showEntry(slug, path: note.path);
-        } else {
-          ref.read(databasesNavProvider.notifier).showList();
-        }
-        shell.select(ShellSection.databases);
-      case NoteType.project:
-        ref.read(projectsNavProvider.notifier).showDetail(note.path);
-        shell.select(ShellSection.projects);
-      case NoteType.note:
-        ref.read(notesNavProvider.notifier).showDetail(note.path);
-        shell.select(ShellSection.notes);
-    }
-  }
+  void _openNote(NoteMeta note) => openNote(ref, note);
 
   List<_Cmd> _results() {
     final q = _query.text.trim();

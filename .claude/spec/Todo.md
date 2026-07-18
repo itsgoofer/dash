@@ -68,13 +68,11 @@ Verify: `flutter analyze` clean ✓, build ✓. Template apply/save round-trip p
 
 Verify: `flutter analyze` clean ✓, build pending. Icon: reused `edit` (no dedicated notes glyph in assets).
 
-## Phase 7 — Tags & backlinks (16) [GATED — confirm with Goofer before building]
+## Phase 7 — Tags & backlinks (16) [Goofer approved "build fully"]
 
-Only if it earns its keep and feeds the brain viz. Decide scope first; skip cancelled/paused ideas.
+- [x] Link-graph pass: `index.dart` extracts `[[wikilinks]]` + `#tags` per note (`NoteMeta.links/tags`); `linkGraphProvider` resolves names→paths and builds backlink + tag maps; `backlinksProvider(path)` derives incoming links. Shared `openNote`/`resolveWikilink` in `lib/state/navigation.dart` (command palette refactored onto it).
+- [x] Inline rendering: `markdown_editing_controller.dart` (edit) + `blocks/read_view.dart` (read) render wikilinks (accent) + tags; read-mode wikilinks are clickable → navigate (unresolved links shown muted). Wiring via `editor.dart` passing `index` + `onOpenLink`.
+- [x] Backlinks panel: `BacklinksPanel` widget in the properties sidebar of journal/project/db-entry/notes screens (hidden when empty).
+- [x] Brain viz: real link density (`linkGraphProvider.linkCount`) drives pulse/storm liveliness (denser vault = livelier brain) and the corner readout shows `LINKS n`. Topology/60fps preserved (no destructive rewrite of the tuned model).
 
-- [ ] Link-graph pass in `lib/vault/index.dart`: parse `[[wikilinks]]` + `#tags` at index time; store forward/back maps on VaultIndex.
-- [ ] Inline rendering: extend `markdown_editing_controller.dart` regex + `read_view.dart` for link/tag styling and click-to-navigate.
-- [ ] Backlinks panel: small section in the Phase-3 properties sidebar.
-- [ ] Brain viz: feed link edges into brain model (nodes already carry `notePath`) — connections mirror real note graph.
-
-Verify: shot — note with tag + wikilink rendered, backlink shown on target, brain viz edge appears.
+Verify: `flutter analyze` clean ✓, build pending. Interactive check (click a `[[link]]`, see a backlink appear, brain liveliness) on Goofer's machine.
