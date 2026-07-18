@@ -17,6 +17,7 @@ import '../../widgets/glow_text.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../databases/databases_screen.dart';
 import '../journal/journal_screen.dart';
+import '../notes/notes_screen.dart';
 import '../projects/projects_screen.dart';
 import 'boot_screen.dart';
 import 'command_palette.dart';
@@ -53,6 +54,7 @@ class Shell extends ConsumerWidget {
   static const _sections = [
     (section: ShellSection.dashboard, icon: 'dashboard', label: 'DASHBOARD'),
     (section: ShellSection.journal, icon: 'book_2', label: 'JOURNAL'),
+    (section: ShellSection.notes, icon: 'edit', label: 'NOTES'),
     (section: ShellSection.databases, icon: 'database', label: 'DATABASES'),
     (section: ShellSection.projects, icon: 'deployed_code', label: 'PROJECTS'),
   ];
@@ -105,6 +107,7 @@ class Shell extends ConsumerWidget {
                           child: switch (selected) {
                             ShellSection.dashboard => const DashboardScreen(),
                             ShellSection.journal => const JournalScreen(),
+                            ShellSection.notes => const NotesScreen(),
                             ShellSection.databases => const DatabasesScreen(),
                             ShellSection.projects => const ProjectsScreen(),
                           },

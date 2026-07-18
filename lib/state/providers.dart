@@ -17,7 +17,7 @@ import '../vault/index.dart';
 import '../vault/vault_fs.dart';
 import '../vault/vault_watcher.dart';
 
-enum ShellSection { dashboard, journal, databases, projects }
+enum ShellSection { dashboard, journal, notes, databases, projects }
 
 class ShellSectionNotifier extends Notifier<ShellSection> {
   @override
@@ -703,6 +703,159 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
 
 final dbEntryProvider =
     AsyncNotifierProvider.family<DbEntryNotifier, DbEntryDoc, DbEntryKey>(DbEntryNotifier.new);
+
+// ─── Notes (plain markdown) ───────────────────────────────────────────────────
+
+/// A plain, non-database note: title (= filename) + body, with any frontmatter
+/// preserved verbatim. Loaded/saved through the same write-through +
+/// flush-on-dispose pipeline as journal/db notes.
+class PlainNoteDoc {
+  const PlainNoteDoc({
+    required this.path,
+    required this.title,
+    required this.body,
+    required this.frontmatter,
+    required this.exists,
+    this.dirty = false,
+    this.changedOnDisk = false,
+  });
+
+  final String path; // vault-relative
+  final String title;
+  final String body;
+  final Map<String, dynamic> frontmatter; // preserved verbatim on save
+  final bool exists, dirty, changedOnDisk;
+
+  PlainNoteDoc copyWith({String? body, Map<String, dynamic>? frontmatter, bool? exists, bool? dirty, bool? changedOnDisk}) =>
+      PlainNoteDoc(
+        path: path,
+        title: title,
+        body: body ?? this.body,
+        frontmatter: frontmatter ?? this.frontmatter,
+        exists: exists ?? this.exists,
+        dirty: dirty ?? this.dirty,
+        changedOnDisk: changedOnDisk ?? this.changedOnDisk,
+      );
+}
+
+class PlainNoteNotifier extends AsyncNotifier<PlainNoteDoc> {
+  PlainNoteNotifier(this.path);
+  final String path; // vault-relative; the file is created before it's opened
+
+  Timer? _timer;
+  late String _root;
+  late VaultFs _fs;
+  late IndexNotifier _index;
+  int? _indexHash;
+
+  String get _abs => p.join(_root, path);
+
+  @override
+  Future<PlainNoteDoc> build() async {
+    _root = (await ref.read(vaultPathProvider.future))!;
+    _fs = ref.read(vaultFsProvider);
+    _index = ref.read(indexProvider.notifier);
+    _indexHash = _index.hashOf(path);
+    ref.onDispose(() {
+      _timer?.cancel();
+      final d = state.value;
+      if (d != null && d.dirty) _persist(d);
+    });
+    ref.listen(indexProvider, (_, next) {
+      final h = next.value?.byPath[path]?.contentHash;
+      if (h == _indexHash) return;
+      _indexHash = h;
+      _onExternalChange();
+    });
+    return _readFromDisk();
+  }
+
+  Future<PlainNoteDoc> _readFromDisk() async {
+    final title = p.basenameWithoutExtension(path);
+    final file = File(_abs);
+    if (!await file.exists()) {
+      return PlainNoteDoc(path: path, title: title, body: '', frontmatter: const {}, exists: false);
+    }
+    final parsed = Frontmatter.parse(await file.readAsString());
+    return PlainNoteDoc(path: path, title: title, body: parsed.body, frontmatter: parsed.data, exists: true);
+  }
+
+  void setBody(String body) {
+    final d = state.value;
+    if (d == null || d.body == body) return;
+    state = AsyncData(d.copyWith(body: body, dirty: true));
+    _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 400), _flush);
+  }
+
+  Future<void> _persist(PlainNoteDoc d) async {
+    // Keep plain notes fence-free when they have no frontmatter.
+    final content = d.frontmatter.isEmpty ? d.body : Frontmatter.serialize(d.frontmatter, d.body);
+    await _fs.writeNote(_abs, content);
+    _index.applyLocalWrite(path, content);
+  }
+
+  Future<void> _flush() async {
+    final d = state.value;
+    if (d == null || !d.dirty) return;
+    await _persist(d);
+    _indexHash = _index.hashOf(path);
+    final cur = state.value;
+    if (cur != null && cur.body == d.body) state = AsyncData(cur.copyWith(dirty: false, exists: true));
+  }
+
+  Future<void> _onExternalChange() async {
+    final d = state.value;
+    if (d == null) return;
+    final incoming = await _readFromDisk();
+    if (incoming.body == d.body) return;
+    state = AsyncData(d.dirty ? d.copyWith(changedOnDisk: true) : incoming);
+  }
+
+  Future<void> reload() async {
+    _timer?.cancel();
+    state = AsyncData(await _readFromDisk());
+  }
+}
+
+final plainNoteProvider =
+    AsyncNotifierProvider.family<PlainNoteNotifier, PlainNoteDoc, String>(PlainNoteNotifier.new);
+
+/// All plain (untyped) notes, newest first — the Notes section's list.
+final notesListProvider = Provider<List<NoteMeta>>((ref) {
+  final index = ref.watch(indexProvider).value;
+  if (index == null) return const [];
+  final list = index.byPath.values.where((m) => m.type == NoteType.note && !isConflictedCopy(m.path)).toList()
+    ..sort((a, b) => b.mtime.compareTo(a.mtime));
+  return list;
+});
+
+/// In-section navigation for Notes (list ↔ detail).
+sealed class NotesView {
+  const NotesView();
+}
+
+class NotesListView extends NotesView {
+  const NotesListView();
+}
+
+class NoteDetailView extends NotesView {
+  const NoteDetailView(this.path);
+  final String path;
+}
+
+class NotesNavNotifier extends Notifier<NotesView> {
+  @override
+  NotesView build() => const NotesListView();
+  void showList() => state = const NotesListView();
+  void showDetail(String path) => state = NoteDetailView(path);
+}
+
+final notesNavProvider = NotifierProvider<NotesNavNotifier, NotesView>(NotesNavNotifier.new);
 
 // ─── Projects ───────────────────────────────────────────────────────────────
 

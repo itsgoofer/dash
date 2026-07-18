@@ -62,11 +62,11 @@ Verify: `flutter analyze` clean ✓, build ✓. Template apply/save round-trip p
 
 ## Phase 6 — Notes section (15) [Sonnet]
 
-- [ ] Add `ShellSection.notes` (`providers.dart:19`), tab in `shell.dart:54-59`, body case `shell.dart:106-111`.
-- [ ] Index accessor for "plain notes" (VaultIndex.byPath minus db/journal/project paths) in `lib/vault/index.dart` or a derived provider.
-- [ ] NotesListScreen mirroring DbListScreen: grid/list + search field (DashControls), opens NoteEditor with Phase-3 layout.
+- [x] Added `ShellSection.notes` + shell tab (after Journal) + body case; command palette (⌘-digit) + `_openNote` updated for the new section.
+- [x] Plain-notes accessor: `notesListProvider` (all `NoteType.note` entries, newest first) + `notesNavProvider` (list ↔ detail).
+- [x] `NotesScreen`: searchable card grid + "New note" (creates `Notes/<title>.md`) + a detail editor over `plainNoteProvider` (new `PlainNoteNotifier`, same write-through + flush-on-dispose pipeline; frontmatter preserved, fence-free when empty). Centered body, no sidebar.
 
-Verify: shot — notes tab listing loose .md files, search filtering, open+edit round-trip indexed instantly (Phase 1).
+Verify: `flutter analyze` clean ✓, build pending. Icon: reused `edit` (no dedicated notes glyph in assets).
 
 ## Phase 7 — Tags & backlinks (16) [GATED — confirm with Goofer before building]
 

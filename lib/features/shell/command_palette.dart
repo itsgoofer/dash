@@ -14,6 +14,7 @@ import 'boot_screen.dart';
 const _sections = [
   (section: ShellSection.dashboard, icon: 'dashboard', label: 'Dashboard'),
   (section: ShellSection.journal, icon: 'book_2', label: 'Journal'),
+  (section: ShellSection.notes, icon: 'edit', label: 'Notes'),
   (section: ShellSection.databases, icon: 'database', label: 'Databases'),
   (section: ShellSection.projects, icon: 'deployed_code', label: 'Projects'),
 ];
@@ -57,6 +58,7 @@ class _CommandPaletteScopeState extends ConsumerState<CommandPaletteScope> {
       LogicalKeyboardKey.digit2,
       LogicalKeyboardKey.digit3,
       LogicalKeyboardKey.digit4,
+      LogicalKeyboardKey.digit5,
     ];
 
     return CallbackShortcuts(
@@ -199,8 +201,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette>
         ref.read(projectsNavProvider.notifier).showDetail(note.path);
         shell.select(ShellSection.projects);
       case NoteType.note:
-        // Plain notes have no viewer surface yet — nothing to open.
-        break;
+        ref.read(notesNavProvider.notifier).showDetail(note.path);
+        shell.select(ShellSection.notes);
     }
   }
 
