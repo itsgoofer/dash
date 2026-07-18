@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/project_status.dart';
 import '../../core/tasks.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
@@ -9,6 +10,7 @@ import '../../widgets/dash_icon.dart';
 import '../../widgets/glass_panel.dart';
 import '../../widgets/properties_sidebar.dart';
 import '../databases/db_widgets.dart';
+import '../databases/template_menu.dart';
 import '../editor/editor.dart';
 import '../editor/note_cover.dart';
 import 'project_widgets.dart';
@@ -30,8 +32,7 @@ class ProjectDetailScreen extends ConsumerWidget {
     final notifier = ref.read(dbEntryProvider(key).notifier);
     if (schema == null) return const SizedBox.shrink();
 
-    final statusOptions =
-        schema.fields.firstWhere((f) => f.name == 'status').options ?? const ['active', 'paused', 'done'];
+    const statusOptions = kProjectStatuses;
     final title = doc.value?.fields['title'] as String? ?? 'Untitled';
     final coverVal = doc.value?.fields['cover'];
 
@@ -62,6 +63,15 @@ class ProjectDetailScreen extends ConsumerWidget {
                 children: [
                   header,
                   ?banner,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TemplateMenu(
+                      fields: value.fields,
+                      body: value.body,
+                      onSetField: notifier.setField,
+                      onSetBody: notifier.setBody,
+                    ),
+                  ),
                   const SizedBox(height: DashSpace.x3),
                   Expanded(
                     child: _Body(value: value, onSetBody: notifier.setBody),

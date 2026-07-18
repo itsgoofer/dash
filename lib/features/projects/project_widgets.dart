@@ -7,10 +7,11 @@ import '../../widgets/dash_icon.dart';
 /// Semantic color for a project status value (falls back to [DashChip]'s
 /// hashed palette for anything unrecognized).
 Color statusColor(String status) => switch (status) {
-      'active' => DashColors.accent,
-      'paused' => DashColors.warning,
+      'active' || 'in progress' => DashColors.accent,
       'done' => DashColors.success,
-      _ => DashChip.optionColor(status),
+      'paused' => DashColors.warning,
+      'cancelled' => DashColors.danger,
+      _ => DashChip.optionColor(status), // planning, pending, and any custom value
     };
 
 /// Thin 2px task-progress bar: `glassBorder` track, accent fill.

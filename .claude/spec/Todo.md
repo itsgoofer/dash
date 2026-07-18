@@ -53,12 +53,12 @@ Verify: `flutter analyze` clean ✓; build pending. Visual/drag check on Goofer'
 
 ## Phase 5 — Projects module (8, 9, 10) [Sonnet, Opus for templating]
 
-- [ ] Expand statuses to pending/in progress/paused/cancelled/done/planning: `vault_scaffold.dart:7-14` (new vaults), migrate existing vaults via `addSchemaOption` (`schema_ops.dart`), fallback list `project_detail_screen.dart:33`, colors `project_widgets.dart:9-14`. Gotcha: existing-vault yaml migration must be idempotent.
-- [ ] Replace hardcoded `=='active'` filters (providers.dart:347, :364) with an in-flight status set {pending, in progress, planning} (+ map legacy 'active'→'in progress').
-- [ ] Tasks single-source: keep tasks body-only (`lib/core/tasks.dart`); verify `project_detail_screen.dart` `_Body` (80-156) and the new sidebar never render task fields from frontmatter — no duplication.
-- [ ] Templating: templates as md files in `.dash/templates/`; picker (Dash overlay menu) on new project/db entry; apply = merge template frontmatter + body in `DbEntryNotifier` initial-body and `projects_list_screen._createProject`.
+- [x] Statuses expanded to planning/pending/in progress/paused/cancelled/done. Migration-free: new constant `lib/core/project_status.dart` (`kProjectStatuses`) drives the status dropdown regardless of vault yaml; scaffold updated for new vaults; `statusColor` gained cases for the new set.
+- [x] Replaced hardcoded `=='active'` filters with `kActiveStatuses.contains(...)` (planning/pending/in progress + legacy 'active' still count); new projects start `kDefaultProjectStatus` = 'planning'.
+- [x] Tasks single-source: verified — tasks live only as body markdown (`lib/core/tasks.dart`); no frontmatter task field exists anywhere, so nothing is duplicated. The Tasks panel and body editor are two views of the same body string (intentional).
+- [x] Templating: `lib/vault/templates.dart` (list/load/save under `.dash/templates/`) + `TemplateMenu` widget (apply a template's fields+body, or save the current item as a template) wired into the DB-entry and project screens.
 
-Verify: shot — project with each status color; new project from template; dashboard active-projects count correct with new statuses.
+Verify: `flutter analyze` clean ✓, build ✓. Template apply/save round-trip pending on Goofer's machine.
 
 ## Phase 6 — Notes section (15) [Sonnet]
 

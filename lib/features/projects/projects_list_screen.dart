@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/frontmatter.dart';
 import '../../core/models/note.dart';
+import '../../core/project_status.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_chip.dart';
@@ -26,7 +27,7 @@ class ProjectsListScreen extends ConsumerWidget {
     final sanitized = title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
     final abs = p.join(root, 'Projects', '$sanitized.md');
     final content = Frontmatter.serialize(
-      {'type': 'project', 'title': title, 'status': 'active'},
+      {'type': 'project', 'title': title, 'status': kDefaultProjectStatus},
       '',
       keyOrder: const ['type', 'title', 'status', 'software'],
     );

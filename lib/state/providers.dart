@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/frontmatter.dart';
 import '../core/models/db_schema.dart';
+import '../core/project_status.dart';
 import '../core/models/note.dart';
 import '../core/tasks.dart';
 import '../theme/dash_theme.dart';
@@ -399,7 +400,7 @@ final dashboardStatsProvider = Provider<DashboardStats>((ref) {
   final weekStart = DateTime(today.year, today.month, today.day - 6);
   final entriesThisWeek =
       index.journalByDate.keys.where((d) => !d.isBefore(weekStart) && !d.isAfter(today)).length;
-  final activeProjects = index.projects.where((p) => p.frontmatter['status'] == 'active').length;
+  final activeProjects = index.projects.where((p) => kActiveStatuses.contains(p.frontmatter['status'])).length;
 
   return DashboardStats(
     streak: streak,
@@ -416,7 +417,7 @@ final dashboardOpenTasksProvider = Provider<int>((ref) {
   final index = ref.watch(indexProvider).value;
   if (index == null) return 0;
   var total = 0;
-  for (final proj in index.projects.where((p) => p.frontmatter['status'] == 'active')) {
+  for (final proj in index.projects.where((p) => kActiveStatuses.contains(p.frontmatter['status']))) {
     final counts = ref.watch(projectTaskCountsProvider(proj.path));
     total += (counts.value?.total ?? 0) - (counts.value?.done ?? 0);
   }

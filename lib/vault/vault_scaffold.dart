@@ -9,7 +9,7 @@ name: Projects
 folder: Projects
 fields:
   - {name: title, type: text, required: true}
-  - {name: status, type: select, options: [active, paused, done]}
+  - {name: status, type: select, options: [planning, pending, in progress, paused, done, cancelled]}
   - {name: software, type: multiselect}
 ''';
 

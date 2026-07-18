@@ -13,6 +13,7 @@ import '../editor/editor.dart';
 import '../editor/note_cover.dart';
 import 'db_widgets.dart';
 import 'schema_ops.dart';
+import 'template_menu.dart';
 
 /// One database entry: typed field controls generated from the schema, plus
 /// a free-form markdown body — mirrors JournalScreen's layout & autosave.
@@ -84,6 +85,15 @@ class EntryForm extends ConsumerWidget {
                     title: header,
                   ),
                   ?banner,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TemplateMenu(
+                      fields: value.fields,
+                      body: value.body,
+                      onSetField: notifier.setField,
+                      onSetBody: notifier.setBody,
+                    ),
+                  ),
                   const SizedBox(height: DashSpace.x4),
                   Expanded(
                     child: NoteEditor(
