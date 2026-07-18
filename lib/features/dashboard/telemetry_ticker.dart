@@ -11,7 +11,7 @@ import '../../theme/dash_theme.dart';
 import 'brain/brain_view.dart';
 
 /// Scrolling sci-fi telemetry overlay: ~6 visible mono lines, every one TRUE,
-/// computed from providers/system state. A new line types in every ~2.6s;
+/// computed from providers/system state. A new line types in every ~1.7s;
 /// older lines shift up and dim. One Column + one Timer — no per-frame paint.
 class TelemetryTicker extends ConsumerStatefulWidget {
   const TelemetryTicker({super.key});
@@ -31,7 +31,7 @@ class _TelemetryTickerState extends ConsumerState<TelemetryTicker> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _push());
-    _timer = Timer.periodic(const Duration(milliseconds: 2600), (_) => _push());
+    _timer = Timer.periodic(const Duration(milliseconds: 1700), (_) => _push());
   }
 
   @override
@@ -121,7 +121,7 @@ class _TelemetryTickerState extends ConsumerState<TelemetryTicker> {
   }
 }
 
-/// Reveals its text left-to-right over ~0.5s; restarts when the text changes.
+/// Reveals its text left-to-right over ~0.4s; restarts when the text changes.
 class _Typewriter extends StatefulWidget {
   const _Typewriter({required this.text});
   final String text;
@@ -132,7 +132,7 @@ class _Typewriter extends StatefulWidget {
 
 class _TypewriterState extends State<_Typewriter> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 500))..forward();
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 400))..forward();
 
   @override
   void didUpdateWidget(_Typewriter old) {
