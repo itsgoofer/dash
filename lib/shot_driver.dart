@@ -17,9 +17,14 @@ const _shotVault = String.fromEnvironment('DASH_SHOT_VAULT');
 
 final shotBoundaryKey = GlobalKey();
 
+String? _savedVaultPath;
+
 Future<void> shotSetup() async {
   if (shotDir.isEmpty || _shotVault.isEmpty) return;
   final prefs = await SharedPreferences.getInstance();
+  // Point at the shot vault only for this run — the user's real vault pref is
+  // restored in shotRun before exit, so a normal launch is unaffected.
+  _savedVaultPath = prefs.getString('vault_path');
   await prefs.setString('vault_path', _shotVault);
 }
 
@@ -61,5 +66,14 @@ Future<void> shotRun(ProviderContainer container) async {
     container.read(projectsNavProvider.notifier).showDetail(index.projects.first.path);
     await _shot('projects_detail');
   }
+  // Edit-mode pass: proves live inline styling (collapsed image syntax → real
+  // image widgets) in the source editor, not just the read view.
+  container.read(editorReadModeProvider.notifier).set(false);
+  container.read(shellSectionProvider.notifier).select(ShellSection.journal);
+  await _shot('journal_edit');
+  final prefs = await SharedPreferences.getInstance();
+  _savedVaultPath == null
+      ? await prefs.remove('vault_path')
+      : await prefs.setString('vault_path', _savedVaultPath!);
   exit(0);
 }

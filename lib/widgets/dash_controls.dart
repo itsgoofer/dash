@@ -489,14 +489,24 @@ class DashMenuAnchor extends StatefulWidget {
 class _DashMenuAnchorState extends State<DashMenuAnchor> with SingleTickerProviderStateMixin {
   final _link = LayerLink();
   final _portal = OverlayPortalController();
-  late final _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-  late final _curve = CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+  late final AnimationController _anim;
+  late final CurvedAnimation _curve;
   bool _open = false;
   bool _hovering = false;
   double _triggerWidth = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // Created eagerly: a lazy `late final` would be first touched in dispose(),
+    // and creating a ticker during unmount does an illegal ancestor lookup.
+    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+    _curve = CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+  }
+
+  @override
   void dispose() {
+    _curve.dispose();
     _anim.dispose();
     super.dispose();
   }

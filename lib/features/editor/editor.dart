@@ -70,6 +70,7 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
 
   @override
   void dispose() {
+    _controller.removeListener(_maybeSlash);
     _closeSlash();
     _controller.dispose();
     super.dispose();
@@ -223,11 +224,13 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
       _items.where((i) => i.label.toLowerCase().replaceAll(' ', '').contains(_slashQuery)).toList();
 
   void _maybeSlash() {
+    if (!mounted) return;
     if (_readNow) return _closeSlash();
     final sel = _controller.selection;
-    if (!sel.isCollapsed || sel.baseOffset < 0) return _closeSlash();
+    if (!sel.isCollapsed || sel.baseOffset <= 0) return _closeSlash();
     final caret = sel.baseOffset;
     final text = _controller.text;
+    if (caret > text.length) return _closeSlash();
     final lineStart = text.lastIndexOf('\n', caret - 1) + 1;
     final m = RegExp(r'^/(\w*)$').firstMatch(text.substring(lineStart, caret));
     if (m == null) return _closeSlash();
@@ -273,10 +276,15 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
   Offset _caretGlobal() {
     final box = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return Offset.zero;
-    final tp = TextPainter(
-      text: _controller.buildTextSpan(context: context, style: DashType.body, withComposing: false),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: box.size.width);
+    final span = _controller.buildTextSpan(context: context, style: DashType.body, withComposing: false);
+    var placeholders = 0;
+    span.visitChildren((s) {
+      if (s is PlaceholderSpan) placeholders++;
+      return true;
+    });
+    final tp = TextPainter(text: span, textDirection: TextDirection.ltr)
+      ..setPlaceholderDimensions(List.filled(placeholders, PlaceholderDimensions.empty))
+      ..layout(maxWidth: box.size.width);
     final o = tp.getOffsetForCaret(
       TextPosition(offset: _slashStart.clamp(0, _controller.text.length)),
       Rect.zero,
@@ -386,6 +394,7 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
 
   @override
   Widget build(BuildContext context) {
+    _controller.vaultRoot = _root;
     final read = ref.watch(editorReadModeProvider) ?? _readMode;
     final Widget surface = read
         ? MarkdownReadView(body: _controller.text, vaultRoot: _root, onChanged: _onReadChanged, centered: widget.centered)
@@ -426,6 +435,10 @@ class _NoteEditorState extends ConsumerState<NoteEditor> {
                 minLines: null,
                 cursorColor: DashColors.accent,
                 style: DashType.body,
+                // EditableText's default strut has forceStrutHeight: true,
+                // which clamps every line to the body height — headings and
+                // inline image placeholders need lines that can grow.
+                strutStyle: StrutStyle.fromTextStyle(DashType.body),
                 scrollPadding: const EdgeInsets.symmetric(vertical: DashSpace.x6),
                 decoration: const InputDecoration(
                   isCollapsed: true,
