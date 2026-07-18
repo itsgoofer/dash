@@ -147,6 +147,15 @@ class _FieldControlState extends State<_FieldControl> {
   late final TextEditingController _controller = TextEditingController(text: widget.value?.toString() ?? '');
 
   @override
+  void didUpdateWidget(_FieldControl old) {
+    super.didUpdateWidget(old);
+    // Resync when the underlying value changes from outside (form reset / reload
+    // from disk). The `!=` guard skips the echo of the user's own keystrokes.
+    final v = widget.value?.toString() ?? '';
+    if (v != _controller.text) _controller.text = v;
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();

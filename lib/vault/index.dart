@@ -46,6 +46,11 @@ class VaultIndex {
     return _metaFromBytes(relPath, bytes, stat.modified);
   }
 
+  /// Builds a [NoteMeta] straight from in-memory content (for optimistic
+  /// index write-through right after a local save, before the watcher fires).
+  static NoteMeta metaFromContent(String relPath, String content) =>
+      _metaFromBytes(relPath, utf8.encode(content), DateTime.now());
+
   static NoteMeta _metaFromBytes(String relPath, List<int> bytes, DateTime mtime) {
     final parsed = Frontmatter.parse(utf8.decode(bytes));
     return NoteMeta(

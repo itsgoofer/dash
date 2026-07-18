@@ -92,6 +92,20 @@ class IndexNotifier extends AsyncNotifier<VaultIndex> {
     return index;
   }
 
+  /// Reflects a just-saved note in the index immediately, without waiting for
+  /// the filesystem watcher — the watcher later no-ops the echo (hash matches).
+  void applyLocalWrite(String relPath, String content) {
+    final current = state.value;
+    if (current != null) state = AsyncData(current.updateNote(VaultIndex.metaFromContent(relPath, content)));
+  }
+
+  void applyLocalDelete(String relPath) {
+    final current = state.value;
+    if (current != null) state = AsyncData(current.removeNote(relPath));
+  }
+
+  int? hashOf(String relPath) => state.value?.byPath[relPath]?.contentHash;
+
   Future<void> _onChange(VaultChange change) async {
     final current = state.value;
     switch (change) {
@@ -185,6 +199,8 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
 
   Timer? _timer;
   late String _root;
+  late VaultFs _fs;
+  late IndexNotifier _index;
   int? _indexHash; // last contentHash seen in the index for this file
 
   String get _rel => 'Journal/${date.year}/${_dateFmt.format(date)}.md';
@@ -193,9 +209,17 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
   @override
   Future<JournalDoc> build() async {
     _root = (await ref.read(vaultPathProvider.future))!;
+    _fs = ref.read(vaultFsProvider);
+    _index = ref.read(indexProvider.notifier);
     _indexHash = ref.read(indexProvider).value?.byPath[_rel]?.contentHash;
 
-    ref.onDispose(() => _timer?.cancel());
+    // Final save on teardown — navigating away before the debounce fires must
+    // never lose an edit (a plain timer-cancel used to drop it silently).
+    ref.onDispose(() {
+      _timer?.cancel();
+      final d = state.value;
+      if (d != null && d.dirty) _persist(d);
+    });
     ref.listen(indexProvider, (_, next) {
       final h = next.value?.byPath[_rel]?.contentHash;
       if (h == _indexHash) return; // our file's index record didn't change
@@ -244,14 +268,22 @@ class JournalNoteNotifier extends AsyncNotifier<JournalDoc> {
 
   void _schedule() {
     _timer?.cancel();
-    _timer = Timer(const Duration(seconds: 1), _flush);
+    _timer = Timer(const Duration(milliseconds: 400), _flush);
+  }
+
+  /// Writes to disk + reflects in the index. Touches no `state`, so it is safe
+  /// to fire during dispose.
+  Future<void> _persist(JournalDoc d) async {
+    final content = _serialize(d);
+    await _fs.writeNote(_abs, content);
+    _index.applyLocalWrite(_rel, content); // instant dashboard/chart refresh
   }
 
   Future<void> _flush() async {
     final d = state.value;
     if (d == null || !d.dirty) return;
-    final content = _serialize(d);
-    await ref.read(vaultFsProvider).writeNote(_abs, content);
+    await _persist(d);
+    _indexHash = _index.hashOf(_rel); // our own write — don't treat as external
     final cur = state.value;
     if (cur != null && cur.body == d.body && cur.cover == d.cover && _mapEq.equals(cur.metrics, d.metrics)) {
       state = AsyncData(cur.copyWith(dirty: false, exists: true));
@@ -397,7 +429,12 @@ class DatabasesNavNotifier extends Notifier<DatabasesView> {
 
   void showList() => state = const DbListView();
   void showTable(String slug) => state = DbTableView(slug);
-  void showEntry(String slug, {String? path}) => state = DbEntryView(slug, path: path);
+  void showEntry(String slug, {String? path}) {
+    // A "New entry" reuses the (slug, null) family key; invalidate so the form
+    // opens blank instead of showing the previously-created entry's fields.
+    if (path == null) ref.invalidate(dbEntryProvider((slug: slug, path: null)));
+    state = DbEntryView(slug, path: path);
+  }
 }
 
 final databasesNavProvider =
@@ -469,6 +506,8 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
 
   Timer? _timer;
   late String _root;
+  late VaultFs _fs;
+  late IndexNotifier _index;
   String? _abs; // current on-disk absolute path; null if never saved
   int? _indexHash;
 
@@ -489,7 +528,14 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
   @override
   Future<DbEntryDoc> build() async {
     _root = (await ref.read(vaultPathProvider.future))!;
-    ref.onDispose(() => _timer?.cancel());
+    _fs = ref.read(vaultFsProvider);
+    _index = ref.read(indexProvider.notifier);
+    // Final save on teardown — never drop a pending edit on navigation.
+    ref.onDispose(() {
+      _timer?.cancel();
+      final d = state.value;
+      if (d != null && d.dirty) _persist(d);
+    });
 
     if (key.path == null) {
       return DbEntryDoc(
@@ -550,26 +596,45 @@ class DbEntryNotifier extends AsyncNotifier<DbEntryDoc> {
 
   void _schedule() {
     _timer?.cancel();
-    _timer = Timer(const Duration(seconds: 1), _flush);
+    _timer = Timer(const Duration(milliseconds: 400), _flush);
+  }
+
+  /// True once there's anything worth saving — a title, body, or any set field.
+  /// A blank new entry stays unwritten so navigation doesn't litter the vault.
+  bool _hasContent(DbEntryDoc d) {
+    if (((d.fields['title'] as String?)?.trim().isNotEmpty ?? false) || d.body.trim().isNotEmpty) return true;
+    return d.fields.entries.any((e) => e.key != 'title' && e.value != null && e.value != false && e.value != '');
+  }
+
+  /// Writes to disk (renaming on title change) + reflects in the index.
+  /// Touches no `state`, so it is safe to fire during dispose. Returns the new
+  /// vault-relative path, or null if there was nothing to save.
+  Future<String?> _persist(DbEntryDoc d) async {
+    if (!_hasContent(d)) return null;
+    final title = (d.fields['title'] as String?)?.trim() ?? '';
+    final newAbs = _absFor(title); // _sanitizeTitle defaults '' → 'Untitled'
+    final content = _serialize(d);
+    await _fs.writeNote(newAbs, content);
+    final old = _abs;
+    if (old != null && old != newAbs) {
+      await _fs.deleteNote(old);
+      _index.applyLocalDelete(_relOf(old));
+    }
+    _abs = newAbs;
+    final rel = _relOf(newAbs);
+    _index.applyLocalWrite(rel, content); // instant table/count refresh
+    return rel;
   }
 
   Future<void> _flush() async {
     final d = state.value;
     if (d == null || !d.dirty) return;
-    final title = (d.fields['title'] as String?)?.trim() ?? '';
-    if (title.isEmpty) return; // needs a title before it can be written
-
-    final newAbs = _absFor(title);
-    final content = _serialize(d);
-    await ref.read(vaultFsProvider).writeNote(newAbs, content);
-    if (_abs != null && _abs != newAbs) {
-      await ref.read(vaultFsProvider).deleteNote(_abs!);
-    }
-    _abs = newAbs;
-
+    final rel = await _persist(d);
+    if (rel == null) return;
+    _indexHash = _index.hashOf(rel);
     final cur = state.value;
     if (cur != null && cur.body == d.body && _deepEq.equals(cur.fields, d.fields)) {
-      state = AsyncData(cur.copyWith(dirty: false, exists: true, path: _relOf(newAbs)));
+      state = AsyncData(cur.copyWith(dirty: false, exists: true, path: rel));
     }
   }
 
