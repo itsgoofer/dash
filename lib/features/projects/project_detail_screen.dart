@@ -7,6 +7,7 @@ import '../../theme/dash_theme.dart';
 import '../../widgets/dash_controls.dart';
 import '../../widgets/dash_icon.dart';
 import '../../widgets/glass_panel.dart';
+import '../../widgets/properties_sidebar.dart';
 import '../databases/db_widgets.dart';
 import '../editor/editor.dart';
 import '../editor/note_cover.dart';
@@ -34,70 +35,91 @@ class ProjectDetailScreen extends ConsumerWidget {
     final title = doc.value?.fields['title'] as String? ?? 'Untitled';
     final coverVal = doc.value?.fields['cover'];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        NoteCoverHeader(
-          cover: coverVal is String ? coverVal : null,
-          onChanged: (v) => notifier.setField('cover', v),
-          title: Row(
-            children: [
-              BackNavButton(onTap: () => ref.read(projectsNavProvider.notifier).showList()),
-              const SizedBox(width: DashSpace.x2),
-              Expanded(child: Text(title, style: DashType.display, overflow: TextOverflow.ellipsis)),
-            ],
-          ),
-        ),
-        if (doc.value?.changedOnDisk ?? false)
-          ChangedOnDiskBanner(onReload: notifier.reload, message: 'This project changed on disk while you were editing.'),
-        const SizedBox(height: DashSpace.x3),
-        switch (doc) {
-          AsyncData(:final value) => Expanded(
-              child: _Body(
-                value: value,
-                statusOptions: statusOptions,
-                onSetField: notifier.setField,
-                onSetBody: notifier.setBody,
+    final header = NoteCoverHeader(
+      cover: coverVal is String ? coverVal : null,
+      onChanged: (v) => notifier.setField('cover', v),
+      title: Row(
+        children: [
+          BackNavButton(onTap: () => ref.read(projectsNavProvider.notifier).showList()),
+          const SizedBox(width: DashSpace.x2),
+          Expanded(child: Text(title, style: DashType.display, overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+    );
+    final banner = doc.value?.changedOnDisk ?? false
+        ? ChangedOnDiskBanner(onReload: notifier.reload, message: 'This project changed on disk while you were editing.')
+        : null;
+
+    return switch (doc) {
+      AsyncData(:final value) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  header,
+                  ?banner,
+                  const SizedBox(height: DashSpace.x3),
+                  Expanded(
+                    child: _Body(value: value, onSetBody: notifier.setBody),
+                  ),
+                ],
               ),
             ),
-          AsyncError(:final error) => Expanded(
-              child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger))),
-            ),
-          _ => Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
-        },
-      ],
-    );
+            PropertiesSidebar(children: [
+              PropertyGroup(
+                label: 'Status',
+                child: _StatusDropdown(
+                  value: value.fields['status'] as String? ?? 'active',
+                  options: statusOptions,
+                  onChanged: (v) => notifier.setField('status', v),
+                ),
+              ),
+              PropertyGroup(
+                label: 'Software',
+                child: SoftwareChipsEditor(
+                  value: (value.fields['software'] as List?)?.map((e) => e.toString()).toList() ?? const <String>[],
+                  onChanged: (v) => notifier.setField('software', v),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      AsyncError(:final error) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            ?banner,
+            const SizedBox(height: DashSpace.x3),
+            Expanded(child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger)))),
+          ],
+        ),
+      _ => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            const SizedBox(height: DashSpace.x3),
+            Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
+          ],
+        ),
+    };
   }
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.value, required this.statusOptions, required this.onSetField, required this.onSetBody});
+  const _Body({required this.value, required this.onSetBody});
   final DbEntryDoc value;
-  final List<String> statusOptions;
-  final void Function(String, dynamic) onSetField;
   final ValueChanged<String> onSetBody;
 
   @override
   Widget build(BuildContext context) {
-    final status = value.fields['status'] as String? ?? 'active';
-    final software = (value.fields['software'] as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
     final body = value.body;
     final tasks = parseTasks(body);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _StatusDropdown(value: status, options: statusOptions, onChanged: (v) => onSetField('status', v)),
-            const SizedBox(width: DashSpace.x3),
-            Expanded(
-              child: SoftwareChipsEditor(value: software, onChanged: (v) => onSetField('software', v)),
-            ),
-          ],
-        ),
-        const SizedBox(height: DashSpace.x4),
         GlassPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +167,7 @@ class _Body extends StatelessWidget {
                   key: ValueKey(value.path),
                   initialText: body,
                   onChanged: onSetBody,
-                  centered: false,
+                  centered: true,
                 ),
               ),
             ],

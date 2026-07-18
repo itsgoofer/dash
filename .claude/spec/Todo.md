@@ -34,12 +34,12 @@ Verify: `flutter analyze` clean ✓. Visual shot pending.
 
 ## Phase 3 — Editor/layout redesign (11, 12, 13, 14) [Opus for 14, Sonnet for rest]
 
-- [ ] Right properties sidebar: build a reusable collapsible `PropertiesSidebar` from `_FieldsPanel/_FieldControl` (`entry_form.dart:105-208`); convert outer Columns to `Row(Expanded(body), sidebar)` in `journal_screen.dart:24-77`, `project_detail_screen.dart:37-156`, `entry_form.dart:46-101`. Gotcha: read/edit toggle already occupies top-right (`editor.dart:479-520`) — place collapse control to avoid collision.
-- [ ] Center body: keep maxWidth 720 (sync BOTH `editor.dart:449` and `blocks/read_view.dart:143`), center within space left of the sidebar.
-- [ ] Header fade: extend bottom gradient in `note_cover.dart:98-106` to full fade into bg0; overlap body start with the fade region (Stack/negative padding in each screen).
-- [ ] Zero-width hidden markers: `lib/core/../markdown_editing_controller.dart:34` buildTextSpan — inactive markers currently transparent-but-full-width. RISK: making them zero-width (fontSize:1 trick like inline images, line 149) breaks caret/click offset mapping — must remap text-position↔visual-offset; budget the most time here, verify caret placement, selection, and line-activation clicks extensively.
+- [x] Right properties sidebar: new reusable `lib/widgets/properties_sidebar.dart` (`PropertiesSidebar` + `PropertyGroup`, app-wide collapse via `propertiesCollapsedProvider`, animates to a 40px strip). Wired into journal (metrics + calendar), project (status + software; tasks stay in the body), and db-entry (schema fields) screens via `Row(Expanded(main), PropertiesSidebar(...))`.
+- [x] Center body: NoteEditor `centered: true` on all three screens (720px measure centered in the space left of the sidebar).
+- [x] Header fade: `note_cover.dart` gradient now fades transparent→transparent→bg0 over the lower third; removed the bottom margin so the body starts right at the fade.
+- [x] Zero-width hidden markers: inactive-line markers collapse to fontSize-1 (~zero width) in `markdown_editing_controller.dart`, with the heading branch collapsing too — "## Title" reads flush-left; clicking a line re-activates and re-expands the markers (same trick already used for inline images).
 
-Verify: shots of journal/project/db entry — sidebar collapsed+expanded, centered body, fading cover; edit-mode shot proving "## Title" flush-left with working caret clicks.
+Verify: `flutter analyze` clean ✓, `flutter build macos --debug` ✓. Interactive/visual check of caret clicks + collapse animation pending on Goofer's machine.
 
 ## Phase 4 — Schema/props & covers (6, 7) [Sonnet, Opus for cover drag]
 

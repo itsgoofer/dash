@@ -34,10 +34,13 @@ class MarkdownEditingController extends TextEditingController {
   TextSpan buildTextSpan({required BuildContext context, TextStyle? style, required bool withComposing}) {
     final base = style ?? DashType.body;
     // Cursor-aware markers: dimmed (text2) on the line(s) the selection touches,
-    // invisible (transparent — glyph metrics unchanged, so caret/click mapping
-    // stays exact) everywhere else. Text is never mutated.
+    // collapsed to ~zero width (transparent + fontSize 1) everywhere else, so
+    // "## Title" reads as "Title" flush to the line start when inactive. Clicking
+    // a line re-activates it and the markers spring back to editable size — the
+    // same collapse trick already used for inactive inline images. Text is never
+    // mutated.
     final dimmed = base.copyWith(color: DashColors.text2, fontWeight: FontWeight.w400, fontStyle: FontStyle.normal);
-    final hidden = dimmed.copyWith(color: const Color(0x00000000));
+    final hidden = dimmed.copyWith(color: const Color(0x00000000), fontSize: 1, letterSpacing: 0);
     final codeBlock = base.copyWith(fontFamily: DashType.codeFamily, fontSize: 13, color: DashColors.text1, height: 1.5);
 
     final sel = selection;
@@ -71,7 +74,10 @@ class MarkdownEditingController extends TextEditingController {
     if (heading != null) {
       final level = heading.group(1)!.length;
       final hStyle = switch (level) { 1 => DashType.editorH1, 2 => DashType.editorH2, _ => DashType.editorH3 };
-      out.add(TextSpan(text: line.substring(0, heading.end), style: marker.merge(hStyle).copyWith(color: marker.color)));
+      // Active: `# ` shown dimmed at heading size. Inactive: `marker` is already
+      // collapsed (fontSize 1) so the title sits flush at the line start.
+      final mk = active ? marker.merge(hStyle).copyWith(color: marker.color) : marker;
+      out.add(TextSpan(text: line.substring(0, heading.end), style: mk));
       out.add(TextSpan(text: line.substring(heading.end), style: hStyle));
       return;
     }

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../state/providers.dart';
 import '../../theme/dash_theme.dart';
 import '../../widgets/dash_icon.dart';
+import '../../widgets/properties_sidebar.dart';
 import '../editor/editor.dart';
 import '../editor/note_cover.dart';
 import 'journal_calendar.dart';
@@ -44,35 +45,19 @@ class JournalScreen extends ConsumerWidget {
         if (doc.value?.changedOnDisk ?? false)
           _ChangedBanner(onReload: () => ref.read(journalNoteProvider(date).notifier).reload()),
         const SizedBox(height: DashSpace.x3),
-        switch (doc) {
-          AsyncData(:final value) => Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: SizedBox(width: 300, child: JournalProperties(date: date, metrics: value.metrics)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: DashSpace.x3),
-                    child: Container(height: 1, color: DashColors.glassBorder),
-                  ),
-                  Expanded(
-                    child: NoteEditor(
-                      key: ValueKey(date),
-                      initialText: value.body,
-                      onChanged: ref.read(journalNoteProvider(date).notifier).setBody,
-                      centered: false,
-                    ),
-                  ),
-                ],
+        Expanded(
+          child: switch (doc) {
+            AsyncData(:final value) => NoteEditor(
+                key: ValueKey(date),
+                initialText: value.body,
+                onChanged: ref.read(journalNoteProvider(date).notifier).setBody,
+                centered: true,
               ),
-            ),
-          AsyncError(:final error) => Expanded(
-              child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger))),
-            ),
-          _ => Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
-        },
+            AsyncError(:final error) =>
+              Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger))),
+            _ => Center(child: CircularProgressIndicator(color: DashColors.accent)),
+          },
+        ),
       ],
     );
 
@@ -80,8 +65,13 @@ class JournalScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: main),
-        const SizedBox(width: DashSpace.x4),
-        const SizedBox(width: 224, child: JournalCalendar()),
+        switch (doc) {
+          AsyncData(:final value) => PropertiesSidebar(children: [
+              PropertyGroup(label: 'Metrics', child: JournalProperties(date: date, metrics: value.metrics)),
+              const PropertyGroup(label: 'Calendar', child: JournalCalendar()),
+            ]),
+          _ => const PropertiesSidebar(children: []),
+        },
       ],
     );
   }

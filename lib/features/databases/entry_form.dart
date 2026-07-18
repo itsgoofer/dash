@@ -8,7 +8,7 @@ import '../../theme/dash_theme.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/dash_chip.dart';
 import '../../widgets/dash_controls.dart';
-import '../../widgets/glass_panel.dart';
+import '../../widgets/properties_sidebar.dart';
 import '../editor/editor.dart';
 import 'db_widgets.dart';
 import 'schema_ops.dart';
@@ -43,92 +43,81 @@ class EntryForm extends ConsumerWidget {
 
     final title = doc.value?.fields['title'] as String?;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final header = Row(
       children: [
-        Row(
-          children: [
-            BackNavButton(onTap: () => ref.read(databasesNavProvider.notifier).showTable(slug)),
-            const SizedBox(width: DashSpace.x2),
-            Expanded(
-              child: Text(
-                (title == null || title.isEmpty) ? 'New entry' : title,
-                style: DashType.display,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (path != null)
-              DashButton(
-                'Delete',
-                icon: 'delete',
-                kind: DashButtonKind.danger,
-                onTap: () => _delete(context, ref, title),
-              ),
-          ],
+        BackNavButton(onTap: () => ref.read(databasesNavProvider.notifier).showTable(slug)),
+        const SizedBox(width: DashSpace.x2),
+        Expanded(
+          child: Text(
+            (title == null || title.isEmpty) ? 'New entry' : title,
+            style: DashType.display,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        if (doc.value?.changedOnDisk ?? false)
-          ChangedOnDiskBanner(onReload: notifier.reload, message: 'This entry changed on disk while you were editing.'),
-        const SizedBox(height: DashSpace.x4),
-        switch (doc) {
-          AsyncData(:final value) => Expanded(
+        if (path != null)
+          DashButton(
+            'Delete',
+            icon: 'delete',
+            kind: DashButtonKind.danger,
+            onTap: () => _delete(context, ref, title),
+          ),
+      ],
+    );
+    final banner = doc.value?.changedOnDisk ?? false
+        ? ChangedOnDiskBanner(onReload: notifier.reload, message: 'This entry changed on disk while you were editing.')
+        : null;
+
+    return switch (doc) {
+      AsyncData(:final value) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _FieldsPanel(
-                    schema: schema,
-                    fields: value.fields,
-                    onChanged: notifier.setField,
-                    onAddOption: (field, option) => addSchemaOption(ref, slug, field, option),
-                  ),
+                  header,
+                  ?banner,
                   const SizedBox(height: DashSpace.x4),
                   Expanded(
                     child: NoteEditor(
                       key: ValueKey('$slug-$path'),
                       initialText: value.body,
                       onChanged: notifier.setBody,
-                      centered: false,
+                      centered: true,
                     ),
                   ),
                 ],
               ),
             ),
-          AsyncError(:final error) => Expanded(
-              child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger))),
-            ),
-          _ => Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
-        },
-      ],
-    );
-  }
-}
-
-class _FieldsPanel extends StatelessWidget {
-  const _FieldsPanel({required this.schema, required this.fields, required this.onChanged, required this.onAddOption});
-  final DbSchema schema;
-  final Map<String, dynamic> fields;
-  final void Function(String, dynamic) onChanged;
-  final void Function(String field, String option) onAddOption;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassPanel(
-      child: Wrap(
-        spacing: DashSpace.x3,
-        runSpacing: DashSpace.x3,
-        children: [
-          for (final f in schema.fields)
-            SizedBox(
-              width: 220,
-              child: _FieldControl(
-                field: f,
-                value: fields[f.name],
-                onChanged: (v) => onChanged(f.name, v),
-                onAddOption: (o) => onAddOption(f.name, o),
-              ),
-            ),
-        ],
-      ),
-    );
+            PropertiesSidebar(children: [
+              for (final f in schema.fields)
+                _FieldControl(
+                  field: f,
+                  value: value.fields[f.name],
+                  onChanged: (v) => notifier.setField(f.name, v),
+                  onAddOption: (o) => addSchemaOption(ref, slug, f.name, o),
+                ),
+            ]),
+          ],
+        ),
+      AsyncError(:final error) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            ?banner,
+            const SizedBox(height: DashSpace.x4),
+            Expanded(child: Center(child: Text('$error', style: DashType.body.copyWith(color: DashColors.danger)))),
+          ],
+        ),
+      _ => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            header,
+            const SizedBox(height: DashSpace.x4),
+            Expanded(child: Center(child: CircularProgressIndicator(color: DashColors.accent))),
+          ],
+        ),
+    };
   }
 }
 

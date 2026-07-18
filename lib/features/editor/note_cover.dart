@@ -79,7 +79,6 @@ class _NoteCoverHeaderState extends ConsumerState<NoteCoverHeader> {
       onExit: (_) => setState(() => _hoverBanner = false),
       child: Container(
         height: 200,
-        margin: const EdgeInsets.only(bottom: DashSpace.x3),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(borderRadius: DashRadius.br),
         child: Stack(
@@ -94,13 +93,15 @@ class _NoteCoverHeaderState extends ConsumerState<NoteCoverHeader> {
                 child: Text('Missing cover: ${widget.cover}', style: DashType.small.copyWith(color: DashColors.text2)),
               ),
             ),
-            // Bottom gradient into bg0 so the title area below stays legible.
+            // Fades fully into the page background over the lower third, so the
+            // body appears to start right where the fade ends.
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0x0008090D), Color(0x9908090D)],
+                  colors: [Colors.transparent, Colors.transparent, DashColors.bg0],
+                  stops: [0.0, 0.45, 1.0],
                 ),
               ),
             ),
