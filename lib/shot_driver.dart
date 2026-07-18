@@ -23,8 +23,8 @@ Future<void> shotSetup() async {
   await prefs.setString('vault_path', _shotVault);
 }
 
-Future<void> _shot(String name) async {
-  await Future.delayed(const Duration(seconds: 2));
+Future<void> _shot(String name, {Duration delay = const Duration(seconds: 2)}) async {
+  await Future.delayed(delay);
   final boundary =
       shotBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
   if (boundary == null) return;
@@ -35,7 +35,10 @@ Future<void> _shot(String name) async {
 
 Future<void> shotRun(ProviderContainer container) async {
   if (shotDir.isEmpty) return;
-  await Future.delayed(const Duration(seconds: 4));
+  // Catch the boot overlay mid-choreography (boot runs 2x slow in shot mode;
+  // log types ~1.6-4.4s after mount, mount follows the vault gate ~0.5s in).
+  await _shot('boot', delay: const Duration(milliseconds: 3500));
+  await Future.delayed(const Duration(milliseconds: 4500));
   // Force the note editor into its rendered read view so the journal shot proves
   // Stage-B rendering (images, callouts, code fences, hidden markers).
   container.read(editorReadModeProvider.notifier).set(true);
